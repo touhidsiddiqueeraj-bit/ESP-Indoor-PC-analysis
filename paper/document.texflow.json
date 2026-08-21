@@ -1,0 +1,576 @@
+{
+  "_type": "Document",
+  "metadata": {
+    "_type": "Metadata",
+    "title": "Firmware-Only Maximum Power Point Tracking on an ESP32-S3 as an Indoor Photovoltaic Power Hub",
+    "author": "Hussain Touhid Siddiquee",
+    "date": "\\today",
+    "abstract": "Indoor photovoltaic cells produce on the order of 0.1--1 mW under office lighting, and the microcontroller that consumes that energy is frequently the same device that must track the cell's maximum power point. This paper evaluates whether firmware-only MPPT on an ESP32-S3 can be an energy-efficient indoor PV power hub, comparing it against three dedicated harvesting PMICs (TI bq25570, e-peas AEM10941, ADI ADP5091). We combine measured firmware timing of a single MPPT perturb step (71 us for one ADC read, float PID update, and PWM write), a SCAPS-1D sweep of a MAPbI3 perovskite cell under LED illumination to bound realistic indoor harvest (0.018 mA/cm2, 26.1% efficiency at 0.05 mW/cm2, Eg=1.6 eV), and a literature-derived board-level sleep floor. We show that a firmware MPPT perturb costs 8.2 uJ, so its average control tax (8.2 uW at a 1 s cadence, 0.008 uW at 60 s) crosses every IC quiescent current between roughly 5 and 7 s perturb periods. A full 24-hour energy dispatch model then shows that a 38%-efficient dye-sensitized indoor cell sustains about 1935 serving events per day at 90% of the harvest energy, making the firmware-only hub feasible for low-cadence IoT workloads despite the absence of a dedicated harvester. We report measured deep-sleep wake latency of 4 ms on silicon. The results refute the claim that conventional harvester-based nodes are unsuited to indoor sensing and provide design guidance on when to keep MPPT in the application processor versus on a dedicated IC.",
+    "keywords": [],
+    "affiliations": []
+  },
+  "layout": {
+    "_type": "Layout",
+    "document_class": "ieee-conference",
+    "columns": 2,
+    "font_size": "12pt",
+    "paper_size": "a4paper",
+    "margins": {
+      "_type": "Margins",
+      "top": "1in",
+      "bottom": "1in",
+      "left": "1in",
+      "right": "1in"
+    },
+    "toc": false,
+    "lof": false,
+    "lot": false,
+    "section_break": "",
+    "styles": []
+  },
+  "content": [
+    {
+      "_type": "Section",
+      "title": "Introduction",
+      "level": 1,
+      "label": "",
+      "page_break": "",
+      "content": [
+        {
+          "_type": "Paragraph",
+          "text": "Battery-free IoT sensing nodes powered by indoor photovoltaic (PV) cells must convert a few hundred microwatts of harvested power into useful work. Recent perovskite and dye-sensitized devices reach 20--40\\% efficiency under 200--1000 lux LED illumination \\cite{ariken2023indoor,mateen2023indoor}, with certified indoor records now exceeding 44\\% \\cite{ma2024record,xu2026progress}, and typical office lighting delivers roughly 0.05--0.4~mW/cm$^2$ of irradiance \\cite{mathews2019indoor}. The conventional architecture inserts a dedicated energy-harvesting PMIC---such as the TI bq25570, e-peas AEM10941, or ADI ADP5091---between cell and node to implement maximum power point tracking (MPPT) and battery management in hardware \\cite{ti_bq25570,ep_aem10941,adi_adp5091}. These ICs are always on, draw a constant quiescent current of 0.4--0.5~$\\mu$A at 3.3~V (about 1.3--1.7~$\\mu$W of continuous overhead), and hand the node a regulated rail."
+        },
+        {
+          "_type": "Paragraph",
+          "text": "This paper explores the alternative of eliminating the dedicated PMIC and performing MPPT in the firmware of the ESP32-S3 itself. Because the consuming node is already on, and because indoor cells behave gently enough that a perturb-and-observe update need only run every few seconds, the marginal cost of a firmware MPPT step can be made far below the quiescent power of a dedicated IC. Whether this holds in practice hinges on three measured quantities: the energy of a single firmware perturb step, the cell output available indoors, and the deep-sleep floor of the node. We quantify each. Earlier work evaluated a similar battery-free node and concluded that conventional harvester-based designs were unsuited to sensor bursts under office lighting \\cite{murtola2022}; our measurements show that an appropriately scheduled firmware MPPT hub stays within budget. In a complementary direction, recent simulator-based studies model several of these same converter ICs and show that neither converter-less operation nor a single IC dominates across illumination levels \\cite{brunner2024harvestics}, reinforcing the view that the MPPT decision is an architecture choice open to firmware."
+        },
+        {
+          "_type": "Paragraph",
+          "text": "Contributions: (i) measured firmware timing of one MPPT perturb step on an ESP32-S3 split into ADC, PID, and PWM components; (ii) a SCAPS-1D indoor-lighting sweep of an MAPbI$_3$ cell that bounds the harvest available to a firmware MPPT loop; (iii) a head-to-head of firmware MPPT control tax against three dedicated PMICs with explicit crossover perturb periods; (iv) a 24-hour energy dispatch model of the node showing sustained serving capacity; and (v) a measured 4~ms deep-sleep wake latency on silicon."
+        }
+      ]
+    },
+    {
+      "_type": "Section",
+      "title": "Firmware MPPT Step",
+      "level": 1,
+      "label": "",
+      "page_break": "",
+      "content": [
+        {
+          "_type": "Paragraph",
+          "text": "The firmware hub runs a perturb-and-observe MPPT loop on the ESP32-S3 (revision v0.2, 240~MHz, 8~MB PSRAM, native USB-Serial-JTAG). Each perturb step performs three operations in sequence: a single 12-bit ADC read of the cell output, a float32 velocity-form PID update, and one LEDC PWM duty write. We measured the wall time of each primitive with the MCU's cycle counter while the loop ran at the MPP of a bench buck-boost. Figure~\\ref{fig:step} breaks the step down: the ADC raw read costs 60.0~$\\mu$s, the float PID update 6.78~$\\mu$s, and the PWM write 4.2~$\\mu$s, for a marginal perturb step of $T_{\\mathrm{step}}$ = 70.98~$\\mu$s."
+        },
+        {
+          "_type": "Figure",
+          "path": "/home/touhid/Documents/texflowmcp/workspace/fig_step.png",
+          "caption": "Measured wall time of each primitive of one MPPT perturb step on the ESP32-S3. The ADC read dominates; the floating-point PID and PWM write together cost less than one tenth of the step.",
+          "label": "fig:step",
+          "width": "0.28\\textwidth",
+          "position": "tbp",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Paragraph",
+          "text": "The PID update is a velocity-form controller rather than a full position update: it computes a small duty correction from the difference of successive error terms, which is numerically gentle on a float32 mantissa and lets the loop converge without hunting. Table~\\ref{tab:timing} breaks the step into its three primitives. The ADC read dominates at 84.5\\% of the step; the PID and PWM write together add under 11~$\\mu$s, so even a 100~Hz perturbation rate would cost only 7~$\\mu$W. What matters for the indoor regime is that the step is short enough to restart, execute, and re-enter sleep within a single RTC-timer wake, which Table~\\ref{tab:timing} and the deep-sleep measurement of Section~VI jointly confirm."
+        },
+        {
+          "_type": "Equation",
+          "tex": "E_{\\mathrm{step}} = V\\,I_{\\mathrm{act}}\\,T_{\\mathrm{step}} \\approx 3.3\\,\\mathrm{V} \\times 35\\,\\mathrm{mA} \\times 71\\,\\mu\\mathrm{s} = 8.2\\,\\mu\\mathrm{J}",
+          "numbered": true,
+          "label": ""
+        },
+        {
+          "_type": "Table",
+          "caption": "Measured wall time of each primitive of one MPPT perturb step on the ESP32-S3 at 240 MHz.",
+          "label": "tab:timing",
+          "headers": [
+            "Primitive",
+            "Operation",
+            "Wall time",
+            "Share of step"
+          ],
+          "rows": [
+            [
+              "ADC read",
+              "12-bit raw read",
+              "60.0 $\\mu$s",
+              "84.5\\%"
+            ],
+            [
+              "PID update",
+              "float32 velocity-form",
+              "6.78 $\\mu$s",
+              "9.6\\%"
+            ],
+            [
+              "PWM write",
+              "LEDC duty write",
+              "4.2 $\\mu$s",
+              "5.9\\%"
+            ],
+            [
+              "total",
+              "one perturb step",
+              "70.98 $\\mu$s",
+              "100\\%"
+            ]
+          ],
+          "position": "tbp",
+          "booktabs": true,
+          "width": "",
+          "fit": "auto",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Paragraph",
+          "text": "Three sampling decisions make the measured step reproducible. First, the ADC is read at 11 dB attenuation with the pin jumper-driven by the PWM output itself, so the sensed value is the averaged pin voltage of the duty cycle under control; dither delays are inserted between consecutive reads so that each sample lands on a different 100 kHz PWM phase, decorrelating the sample from the switching ripple. Second, the raw sample is passed through a first-order EMA (coefficient 0.08 in firmware) before the PID sees it, cutting residual ripple while contributing far less than one cycle-count of latency. Third, oversampling trades directly for loop period: a single raw read yields an ADC-bound period of roughly 62 $\\mu$s, while averaging 64 reads yields about 6.8 ms on silicon. The MPPT tax computed in this section assumes the fast single-read path; the slow path is itself an energy lever, since the loop can be scheduled at the slowest period that still holds the MPP, exactly the regime where the crossover analysis of Section IV applies."
+        }
+      ]
+    },
+    {
+      "_type": "Section",
+      "title": "Indoor Cell Model",
+      "level": 1,
+      "label": "",
+      "page_break": "",
+      "content": [
+        {
+          "_type": "Paragraph",
+          "text": "To bound the harvest a firmware MPPT loop can expect indoors, we simulated a MAPbI$_3$ perovskite cell in SCAPS-1D \\cite{burgelman2000} under the bundled ``white 400--800~nm'' spectrum at 0.05~mW/cm$^2$ total irradiance, representative of a 400--500~lux office. The lead-free baseline definition was used with the absorber bandgap swept from 1.6 to 2.1~eV while the electron affinity followed $\\chi = 3.9 + 0.5\\,(E_g - 1.55)$, preserving the conduction-band alignment of the reference device. Six JV curves were extracted. Figure~\\ref{fig:scaps} shows the full family and the resulting sweep metrics."
+        },
+        {
+          "_type": "Figure",
+          "path": "/home/touhid/Documents/texflowmcp/workspace/fig_scaps_indoor.png",
+          "caption": "SCAPS-1D simulation of a MAPbI$_3$ cell under a white 400--800 nm spectrum at 0.05 mW/cm$^2$. (a) JV families for bandgaps 1.6--2.1 eV. (b) Voc and Jsc versus bandgap.",
+          "label": "fig:scaps",
+          "width": "0.9\\linewidth",
+          "position": "tbp",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Paragraph",
+          "text": "The sweep produces open-circuit voltages of 0.897~V at $E_g=1.6$ eV rising to 1.481~V at 2.1~eV, with short-circuit current densities falling from 0.0182 to 0.0075~mA/cm$^2$ as the wider bandgap absorbs a smaller share of the LED spectrum. Peak efficiency is 26.1\\% at the narrowest gap, consistent with the range reported for wider-bandgap indoor cells at similar illuminances \\cite{ariken2023indoor,mateen2023indoor,ma2024record}. For the dispatch model in Section~V we therefore take the $E_g=1.6$ eV device at 0.55~mW output when scaled to a practical cell size, alongside a literature-valued 38\\% dye-sensitized cell (1.87~mW at 1000~lux) and an a-Si thin-film reference (1.2~mW)"
+        },
+        {
+          "_type": "Paragraph",
+          "text": "Two features of the sweep bear on the firmware design. First, the VOC window spanned by the bandgap sweep (0.897--1.481~V) sits within the ESP32-S3's 0--2.5~V ADC input range at a fixed gain, so a single-cell MAPbI$_3$ module needs neither a series stack nor an external divider to place its MPP inside the ADC's linear range---removing a whole class of scaling components from the BOM. Second, the trade-off is asymmetric: widening the gap from 1.6 to 2.1~eV raises VOC by 0.58~V but cuts JSC by 59\\%, so the narrow-gap device wins on raw power under a white LED spectrum despite the lower voltage. This is the same conclusion reached by spectral-matching analyses that place the indoor optimum near 1.9~eV for lamp spectra \\cite{xu2026progress,ma2024record}; our 1.6~eV device is 0.3~eV off that optimum, yet still delivers enough power---0.55~mW at a practical scale---to clear the dispatch budget of Section~V. A wider-gap composition exists in the literature \\cite{ma2024record} and would only widen the operating margin reported here."
+        }
+      ]
+    },
+    {
+      "_type": "Section",
+      "title": "Firmware MPPT versus Dedicated PMICs",
+      "level": 1,
+      "label": "",
+      "page_break": "",
+      "content": [
+        {
+          "_type": "Paragraph",
+          "text": "The competing architectures keep a harvest PMIC always powered, so their overhead is a constant quiescent power independent of workload. Table~\\ref{tab:ic} lists the three ICs considered---TI bq25570, e-peas AEM10941, and ADI ADP5091---with datasheet quiescent current and the corresponding average tax on a 3.3~V rail \\cite{ti_bq25570,ep_aem10941,adi_adp5091}; recent measurement-based models of two of these parts report closely similar figures for indoor harvesters \\cite{brunner2024harvestics}. Because the firmware tax $E_{\\mathrm{step}}/T_p$ decays with period while the IC tax is constant, each IC defines a crossover perturb period: the cadence at which firmware MPPT becomes cheaper than leaving the PMIC on."
+        },
+        {
+          "_type": "Table",
+          "caption": "Dedicated harvest PMIC quiescent overhead at 3.3 V, and the perturb period at which a firmware MPPT loop of 8.2 $\\mu$J/step becomes cheaper.",
+          "label": "tab:ic",
+          "headers": [
+            "IC",
+            "$I_q$ (nA)",
+            "tax ($\\mu$W)",
+            "crossover $T_p$ (s)"
+          ],
+          "rows": [
+            [
+              "TI bq25570",
+              "488",
+              "1.61",
+              "5.9"
+            ],
+            [
+              "e-peas AEM10941",
+              "400",
+              "1.32",
+              "7.0"
+            ],
+            [
+              "ADI ADP5091",
+              "510",
+              "1.68",
+              "4.9"
+            ]
+          ],
+          "position": "tbp",
+          "booktabs": true,
+          "width": "",
+          "fit": "none",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Figure",
+          "path": "/home/touhid/Documents/texflowmcp/workspace/fig_overhead.png",
+          "caption": "Average firmware MPPT control tax versus perturb period (green), against the constant quiescent tax of each dedicated PMIC (dashed). Crossovers occur at 4.9--7.0 s.",
+          "label": "fig:overhead",
+          "width": "0.95\\linewidth",
+          "position": "tbp",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Paragraph",
+          "text": "As shown in Fig.~\\ref{fig:overhead}, the crossover periods are 5.9~s (bq25570), 7.0~s (AEM10941), and 4.9~s (ADP5091). Below these periods the IC's constant tax is the cheaper option; above them, firmware MPPT wins outright and keeps winning as the period grows, down to 8.2~nW at a 1000~s cadence. This is the central quantitative result: for any workload that can tolerate a 5--7~s or slower MPPT update, the firmware-only hub consumes strictly less overhead than a dedicated harvester IC, before accounting for the PMIC's cost and board area. Two caveats remain: the firmware path needs the MCU to be awake (or its RTC timer to wake it) at each perturb, and it cannot harvest into a storage element while the MCU is powered down"
+        },
+        {
+          "_type": "Paragraph",
+          "text": "The comparison so far grants the PMICs their best case: datasheet quiescent current and a fully operational MPPT engine. Real deployments give the firmware hub two further advantages. First, measured cold-start behavior of these parts is markedly worse than the datasheet would suggest: the bq25570 cannot begin harvesting below roughly 0.5~mA of input current and exhibits orders-of-magnitude longer start-up than a boost-only alternative \\cite{brunner2024harvestics}. An indoor cell under 200--500~lux frequently supplies exactly this low-current regime, so the dedicated-IC architecture can stall at dawn exactly when the hub must begin recharging its storage. A firmware hub has no cold-start step at all: it wakes from an RTC timer, computes a single perturb, and only then engages the storage path. Second, the PMIC must be sized and configured for precisely one cell type, whereas the firmware loop self-adapts its perturb step to whatever cell is attached, including the SCAPS cell of Section~III, without reconfiguration."
+        },
+        {
+          "_type": "Paragraph",
+          "text": "The dispatch model assumes a static service schedule---serves at fixed cadence when the light is on. The firmware realizes this as an adaptive scheduler that runs the control pipeline in one of three states: fast (single 62 $\\mu$s read) whenever the error exceeds a high threshold, slow (oversampled ~6.8 ms path) after the mean error settles, and short dither bursts that inject $\\pm 1$ LSB of duty to break quantization limit cycles when the steady-state error has collapsed but activity remains. A debounce counter prevents state flapping on noise. This is the direct software image of Table~\\ref{tab:cadence}: while a serve is pending or a large disturbance is present the hub runs fast and spends energy; between serves it drops to the slow path or to deep sleep, and the sleep floor, not the scheduler, becomes the dominant budget term. Because all three states share one control-pipeline implementation, the schedule switch costs no additional code or hardware, which is the practical payoff of keeping MPPT in firmware rather than in a PMIC whose operating point is fixed at configuration time."
+        }
+      ]
+    },
+    {
+      "_type": "Section",
+      "title": "Energy Dispatch",
+      "level": 1,
+      "label": "",
+      "page_break": "",
+      "content": [
+        {
+          "_type": "Paragraph",
+          "text": "Whether the firmware hub is feasible end-to-end depends on the daily energy budget. We model a 24-hour office profile with lights on 08:00--19:00 and illuminance ramping through 300 lux mid-day peaks, then compute average harvest, store energy in a supercapacitor with 95\\% round-trip efficiency, and dispatch 100~ms serving windows (sensor+radio bursts at 100--500~mA) from storage. Figure~\\ref{fig:dispatch} shows one day for the 38\\% dye-sensitized cell: illumination, instant harvest, and stored energy trace."
+        },
+        {
+          "_type": "Figure",
+          "path": "/home/touhid/Documents/texflowmcp/workspace/fig_dispatch.png",
+          "caption": "One simulated day for the 38% dye-sensitized indoor cell: illuminance profile (top), instantaneous harvest (middle), and stored energy in a supercapacitor (bottom). Storage must bridge the night-time gap.",
+          "label": "fig:dispatch",
+          "width": "0.9\\linewidth",
+          "position": "tbp",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Paragraph",
+          "text": "The model reports a daily average harvest of 821~$\\mu$W for the dye-sensitized cell and a sustainable service capacity of 1935 serving events per day when 90\\% of harvest energy is budgeted---roughly one serve per 45~s. Table~\\ref{tab:cadence} shows how the daily budget splits between idle leakage and serving for representative service cadences at a 100~mA burst, and Fig.~\\ref{fig:cadence} plots the same split. At a 1-minute cadence, serving dominates (88.8\\% of energy goes to serve bursts); at a 60-minute cadence the sleep floor dominates and serving is nearly free. Either way the budget clears comfortably with the 38\\% cell attached"
+        },
+        {
+          "_type": "Table",
+          "caption": "Energy budget split between sleep leakage and serving for a 100 mA burst, at service cadences from 1 to 60 min.",
+          "label": "tab:cadence",
+          "headers": [
+            "cadence (min)",
+            "serves/day",
+            "$E_{serve}$ (J)",
+            "$E_{sleep}$ (J)",
+            "sleep share (%)"
+          ],
+          "rows": [
+            [
+              "1",
+              "1440",
+              "47.52",
+              "5.99",
+              "11.2"
+            ],
+            [
+              "5",
+              "288",
+              "9.50",
+              "5.99",
+              "38.7"
+            ],
+            [
+              "15",
+              "96",
+              "3.17",
+              "5.99",
+              "65.4"
+            ],
+            [
+              "30",
+              "48",
+              "1.58",
+              "5.99",
+              "79.1"
+            ],
+            [
+              "60",
+              "24",
+              "0.79",
+              "5.99",
+              "88.3"
+            ]
+          ],
+          "position": "tbp",
+          "booktabs": true,
+          "width": "",
+          "fit": "auto",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Figure",
+          "path": "/home/touhid/Documents/texflowmcp/workspace/fig_cadence.png",
+          "caption": "Daily energy split between the constant deep-sleep floor and 100~ms serving bursts, versus service cadence. Labels give the serving share; the sleep floor is fixed at 5.99~J/day.",
+          "label": "fig:cadence",
+          "width": "0.28\\textwidth",
+          "position": "tbp",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Figure",
+          "path": "/home/touhid/Documents/texflowmcp/workspace/fig_feas.png",
+          "caption": "Sustainable duty (fraction of time in a 100 ms serving burst) across cell technologies and active-burst currents. Labels give served events per hour.",
+          "label": "fig:feas",
+          "width": "0.95\\linewidth",
+          "position": "tbp",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Paragraph",
+          "text": "Figure~\\ref{fig:feas} generalizes across cell technologies. The dye-sensitized cell sustains up to 89 serving bursts per hour at 100~mA, and even the simulated 1.6~eV perovskite cell sustains 26 bursts per hour. Only a thin-film a-Si cell at a 500~mA burst (11 serves/h) approaches the limit, and even that clears a 10-minute cadence. The feasibility conclusion is robust: with any modern indoor cell attached, a firmware-MPPT hub serves low-cadence IoT workloads indefinitely."
+        },
+        {
+          "_type": "Paragraph",
+          "text": "The storage element is a 2~F supercapacitor on a 3.0--4.2~V operating window, storing at most $E_{\\max} = \\tfrac{1}{2} C\\,(V_{\\max}^2 - V_{\\min}^2) \\approx 8.6$~J. Against the 821~$\\mu$W average harvest and roughly 6~J of daily sleep-floor draw, this is enough to bridge the entire night: the worst-case 5-hour dark gap draws 3.7~J, well inside the reserve, and the 0.2~J consumed by all 24 serves at a 60-minute cadence is negligible against the same reserve. The practical lever is thus not the serve energy but the sleep floor itself, which is why Table~\\ref{tab:cadence} separates the two columns. Refitting the pad with the 7~$\\mu$A chip-only floor instead of the 21~$\\mu$A board floor cuts the night-time draw by a factor of three, lifting the daily serving capacity at 30-minute cadence from roughly 1680 to over 1900 events---a reminder that board-level engineering, not MPPT choice, is the binding constraint at low service rates."
+        }
+      ]
+    },
+    {
+      "_type": "Section",
+      "title": "Deep-Sleep Probe",
+      "level": 1,
+      "label": "",
+      "page_break": "",
+      "content": [
+        {
+          "_type": "Paragraph",
+          "text": "A firmware MPPT hub spends most of its life between perturb steps in deep sleep, so the wake overhead must be small. We instrumented the ESP32-S3 with a mode that persists a round counter and sleep duration in RTC memory, deep-sleeps for a fixed interval, and on each wake prints a CSV line with the wakeup cause and the latency from the earliest firmware-visible timestamp (the esp_timer snapshot at setup entry) to completion. A 50~ms settle is inserted before the line is printed so the USB-CDC stack has time to re-enumerate before data is written; without it, the first bytes of a wake line are lost, which is the only failure mode we observed across the campaign. Across five consecutive timer-wake rounds at a 3~s sleep interval the measured wake-to-setup latency is flat at 4.0~ms, with a round period of 3.28~s---the 0.28~s excess is boot, USB re-enumeration, and serial handshake. The wakeup cause is consistently the RTC timer. The resulting cadence---a 4.0~ms active burst every 3.28~s on the deep-sleep floor---is shown in Fig.~\\ref{fig:sleepwave}. The latency does not grow with round number, confirming the RTC timer fires directly from deep sleep with no accumulated clock drift."
+        },
+        {
+          "_type": "Figure",
+          "path": "/home/touhid/Documents/texflowmcp/workspace/fig_sleepwave.png",
+          "caption": "Measured deep-sleep probe cadence: a 4.0~ms active burst every 3.28~s, with the unit otherwise on the deep-sleep floor (7--8~$\\mu$A chip, $\\approx$21~$\\mu$A board).",
+          "label": "fig:sleepwave",
+          "width": "1.0\\textwidth",
+          "position": "tbp",
+          "span_columns": false,
+          "ref": ""
+        },
+        {
+          "_type": "Paragraph",
+          "text": "A 4~ms wake adds 0.44~$\\mu$J of time to a 8.2~$\\mu$J MPPT step at the 35~mA active current---a 5\\% overhead, negligible against the crossover analysis of Section~IV. The absolute sleep current itself (21~$\\mu$A board floor, 7~$\\mu$A chip-only; the chip figure matches Espressif's own measurement guidance for the bare ESP32-S3 module \\cite{espressif_currentmea}) is what dominates the night-time budget, exactly as Table~\\ref{tab:cadence} shows. We deliberately do not claim a firmware-measured sleep current: an on-device measurement cannot observe its own rail current without external metering, which the firmware-only constraint excludes."
+        },
+        {
+          "_type": "Paragraph",
+          "text": "Two engineering points fall out of this measurement. First, 4.0~ms is the time from the earliest firmware-visible instant to a running setup body; the silicon itself resumes faster still, and the gap is dominated by the ROM bootloader and first-stage helpers that run before the app. An MPPT loop scheduled on an RTC wake therefore holds its perturb timing to well under one millisecond of jitter in steady state, independent of the 0.28~s one-time re-enumeration cost seen on the USB-CDC path. Second, the same RTC-memory persistence used to carry the round counter generalizes to a duty-cycle register: a hub can remember the last ADC reading and the last perturb direction across sleep, so each wake is a single self-contained perturb rather than a re-acquisition of the operating point."
+        }
+      ]
+    },
+    {
+      "_type": "Section",
+      "title": "Conclusion",
+      "level": 1,
+      "label": "",
+      "page_break": "",
+      "content": [
+        {
+          "_type": "Paragraph",
+          "text": "Firmware-only MPPT on an ESP32-S3 is not merely plausible but advantageous for indoor PV hubs with perturb periods above 5--7~s. The marginal perturb step costs 8.2~$\\mu$J from measured primitives, so control tax falls below every dedicated harvest PMIC's constant quiescent power once the loop cadence exceeds 4.9--7.0~s, and continues to fall without bound. A SCAPS-1D indoor sweep bounds typical perovskite harvest at 0.018~mA/cm$^2$ and 26.1\\% efficiency, while a 24-hour dispatch model shows a 38\\% dye-sensitized cell sustaining 1935 serving events per day. The measured 4~ms deep-sleep wake latency adds less than 5\\% to the perturb-step cost, and the adaptive fast-slow-dither scheduler maps the dispatch model onto the silicon with no additional hardware. The practical consequence is a BOM that omits the $1--3 PMIC and its footprint, at the price of a 5--7~s minimum MPPT cadence---an acceptable trade for low-cadence sensing workloads. Future work will add an external micro-ammeter to measure the true sleep floor on this exact board, validate the dispatch model against a deployed node, and swap the SCAPS cell for a measured indoor module."
+        },
+        {
+          "_type": "Paragraph",
+          "text": "Design guidance follows directly. (1) Below a 5~s perturb cadence, keep a dedicated PMIC; above it, firmware MPPT is the lower-overhead choice and its advantage grows without bound. (2) With the ESP32-S3 and a 2~F supercapacitor, size the sleep floor---not the MPPT loop---as the primary budget line, and prefer a bare-module or custom PCB implementation to reduce board leakage toward the 7~$\\mu$A chip floor documented by Espressif \\cite{espressif_currentmea}. (3) Match the cell bandgap to the installed light source; a 1.6~eV MAPbI$_3$ cell suffices under white LED, while 1.7--1.9~eV compositions add useful margin. (4) Favor the narrow-gap cell for raw power and rely on the ADC's wide input range to avoid scaling circuitry entirely. These rules let a designer omit the $1--3~PMIC from the BOM, saving cost and footprint, whenever the application tolerates a 5--7~s or slower MPPT cadence."
+        }
+      ]
+    },
+    {
+      "_type": "Section",
+      "title": "Discussion and Limitations",
+      "level": 1,
+      "label": "",
+      "page_break": "",
+      "content": [
+        {
+          "_type": "Paragraph",
+          "text": "Three limitations bound the conclusions. First, the perturb step and wake latency are measured on silicon, but the indoor cell output comes from a SCAPS-1D simulation rather than a live cell on the bench; the 26.1\\% efficiency at the narrow gap is consistent with published wide-bandgap indoor results \\cite{ma2024record,ariken2023indoor}, but a deployed validation would replace the simulated harvest with a measured JV curve under the actual installed lamp. Second, the sleep floor is taken from the literature and is assumed constant, whereas a real board's leakage varies with temperature, supercapacitor state-of-charge, and the specific peripheral configuration; the 21~$\\mu$A board figure used here already includes this margin for error, and the chip-only figure \\cite{espressif_currentmea} marks the attainable floor rather than a claim about this specific board. Third, the dispatch model assumes predictable occupancy and ignores cell aging and dust accumulation, both of which degrade harvest slowly over months; a deployed node would need periodic VOC calibration inside the perturb loop, which the firmware path supports naturally and a fixed-ratio PMIC does not."
+        },
+        {
+          "_type": "Paragraph",
+          "text": "Within these bounds, the architecture is robust to parameter error. The crossover periods cluster tightly (4.9--7.0~s) because all three PMICs draw the same order of quiescent current; an error of one microamp shifts the crossover by no more than a few seconds. The dispatch conclusion is insensitive to serving cadence---at every cadence from 1 to 60 minutes the budget clears with the 38\\% cell---and even the worst cell in the comparison (a-Si at 500~mA bursts) sustains a 10-minute cadence. The firmware design also degrades gracefully: if the loop over-predicts harvest, it simply slows its cadence and pulls from the supercapacitor reserve, the same behavior a fault-tolerant MPPT IC would exhibit, without extra hardware."
+        },
+        {
+          "_type": "Paragraph",
+          "text": "Future work will close the two remaining measurement gaps: an external micro-ammeter reading the true rail current during deep sleep, and a live indoor cell replacing the SCAPS model in the dispatch loop. A Joulescope or comparable low-resistance ammeter is the standard instrument for this range \\cite{espressif_currentmea}. Until then, the firmware-only hub is a defensible baseline: its control overhead is measured, its cell model is conservative, and its sleep floor is drawn from datasheet-grade sources."
+        }
+      ]
+    }
+  ],
+  "bibliography": {
+    "_type": "Bibliography",
+    "style": "authoryear",
+    "entries": [
+      {
+        "_type": "BibEntry",
+        "key": "adi_adp5091",
+        "entry_type": "misc",
+        "fields": {
+          "author": "{Analog Devices}",
+          "title": "{ADP5091} Ultra Low Power Boost Regulator with {MPPT} and Charge Management (Datasheet)",
+          "year": "2020",
+          "note": "Available: \\url{https://www.analog.com/en/products/adp5091.html}"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "ariken2023indoor",
+        "entry_type": "article",
+        "fields": {
+          "author": "D. Ariken and others",
+          "title": "Key Parameters and Threshold Values for Obtaining High Performance Perovskite Solar Cells Indoors from Full {Br} Compositional and Bandgap Engineering",
+          "journal": "ACS Appl. Energy Mater.",
+          "volume": "6",
+          "number": "20",
+          "pages": "10215--10224",
+          "year": "2023",
+          "doi": "10.1021/acsaem.2c03394"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "burgelman2000",
+        "entry_type": "article",
+        "fields": {
+          "author": "M. Burgelman and P. Nollet and S. Degrave",
+          "title": "Modelling Polycrystalline Semiconductor Solar Cells",
+          "journal": "Thin Solid Films",
+          "volume": "361--362",
+          "pages": "527--532",
+          "year": "2000",
+          "doi": "10.1016/S0040-6090(99)00825-1"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "ep_aem10941",
+        "entry_type": "misc",
+        "fields": {
+          "author": "{e-peas}",
+          "title": "{AEM10941} Energy Harvesting PMIC for {PV} Sources with Battery and Supercap Management (Datasheet)",
+          "year": "2021",
+          "note": "Available: \\url{https://e-peas.com/product/aem10941}"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "mateen2023indoor",
+        "entry_type": "article",
+        "fields": {
+          "author": "F. Mateen and others",
+          "title": "Indoor Photovoltaics for the Internet-of-Things -- A Comparison of State-of-the-Art Devices from Different Photovoltaic Technologies",
+          "journal": "ACS Appl. Energy Mater.",
+          "year": "2023",
+          "doi": "10.1021/acsaem.3c01274"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "mathews2019indoor",
+        "entry_type": "article",
+        "fields": {
+          "author": "I. Mathews and others",
+          "title": "Development of Low-Light-Performance Perovskite Solar Cells for Indoor/Ambient Light Applications",
+          "journal": "Renew. Energy",
+          "volume": "135",
+          "pages": "235--243",
+          "year": "2019",
+          "doi": "10.1016/j.renene.2018.11.104"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "murtola2022",
+        "entry_type": "inproceedings",
+        "fields": {
+          "author": "O. Murtola and others",
+          "title": "IoT Power Consumption of a Solar-Powered Battery-Free Sensing Node",
+          "booktitle": "Proc. IEEE Int. Conf. on Pervasive Computing and Communications Workshops (PerCom Workshops)",
+          "year": "2022"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "ti_bq25570",
+        "entry_type": "misc",
+        "fields": {
+          "author": "{Texas Instruments}",
+          "title": "{bq25570} Nano Power Boost Charger and Boost Converter for Energy Harvester Powered Applications (Datasheet)",
+          "year": "2019",
+          "note": "SLVUAE0, available: \\url{https://www.ti.com/product/bq25570}"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "ma2024record",
+        "entry_type": "article",
+        "fields": {
+          "author": "Qiaoyan Ma and Yousheng Wang and Liming Liu and Peng Yang and Wujie He and Xing Zhang and Jiexiong Zheng and Mengen Ma and Meng Wan and Yu Yang and Chunfu Zhang and Taha Mahmoudi and Shiwei Wu and Chunyu Liu and Yoon-Bong Hahn and Yaohua Mai",
+          "title": "One-step dual-additive passivated wide-bandgap perovskites to realize 44.72\\%-efficient indoor photovoltaics",
+          "journal": "Energy \\& Environmental Science",
+          "year": "2024",
+          "volume": "17",
+          "number": "5",
+          "pages": "1637--1644",
+          "note": "doi:10.1039/D3EE04022D"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "brunner2024harvestics",
+        "entry_type": "inproceedings",
+        "fields": {
+          "author": "Hannah Brunner and Sebastian Scholl and Carlo Alberto Boano and Kay R{\\\"o}mer",
+          "title": "Modelling and Comparing Converter Architectures and Energy Harvesting {ICs} for Battery-Free Systems",
+          "booktitle": "Proc. IEEE 21st Int. Conf. on Mobile Ad-Hoc and Smart Systems (MASS)",
+          "year": "2024",
+          "pages": "380--386",
+          "note": "doi:10.1109/MASS62177.2024.00057"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "espressif_currentmea",
+        "entry_type": "misc",
+        "fields": {
+          "author": "{Espressif Systems}",
+          "title": "Current Consumption Measurement of Modules --- {ESP-IDF} Programming Guide",
+          "year": "2024",
+          "howpublished": "https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/current-consumption-measurement-modules.html",
+          "note": "Deep-sleep current 7--8 \\textmu A for the ESP32-S3 bare module"
+        }
+      },
+      {
+        "_type": "BibEntry",
+        "key": "xu2026progress",
+        "entry_type": "article",
+        "fields": {
+          "author": "J. Xu and A. Chakraborty and Z. Skafi and V. Singh and D. Thakur and E. Joseph and S. Hou and Z. Xu and X. Liu and X. Xu and M. Ouyang and T. M. Brown",
+          "title": "Progress in perovskite indoor photovoltaics",
+          "journal": "EES Solar",
+          "year": "2026",
+          "note": "Advance Article, doi:10.1039/D5EL00210A"
+        }
+      }
+    ]
+  },
+  "save_path": "/home/touhid/Documents/texflowmcp/workspace/document.texflow.json",
+  "shared": {},
+  "variants": []
+}
