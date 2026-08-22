@@ -22,23 +22,39 @@ V = 3.3
 I_SLEEP_BOARD = 21e-6
 N_HOURS = 24
 
-# ---- fig_overhead ----  single-column, whitespace-trimmed
+# ---- fig_overhead ----  single-column, whitespace-trimmed, no overlap
 A = D["part_a"]
 fig, ax = plt.subplots(figsize=(3.4, 1.85))
 per = np.array(A["fw_tax"]["period_s"])
 fw = np.array(A["fw_tax"]["uw"])
-ax.semilogx(per, fw, lw=1.6, color="#1b9e77", label="firmware MPPT tax")
+ax.semilogx(per, fw, lw=1.7, color="#1b9e77", label="firmware MPPT")
+# IC quiescent taxes — distinct linestyles for single-column legibility
+ic_styles = {
+    "bq25570 (TI)": (":", 1.2),
+    "AEM10941 (e-peas)": ("--", 1.2),
+    "ADP5091 (ADI)": ("-.", 1.2),
+}
+# place IC labels with leader lines to avoid overlap (taxes cluster at 1.32–1.68 µW)
+ic_offsets = {
+    "bq25570 (TI)": (1.05, 0.22),
+    "AEM10941 (e-peas)": (1.05, -0.32),
+    "ADP5091 (ADI)": (1.05, 0.52),
+}
 for name, tax in A["ic_bars_uw"].items():
-    ax.axhline(tax, ls="--", lw=1.1, color="#d95f02", alpha=0.85)
-    ax.text(1.08, tax * 1.28, f"{name} $I_q$", fontsize=6.5, color="#d95f02", va="center", ha="left",
-            bbox=dict(boxstyle="round,pad=0.08", fc="white", ec="none", alpha=0.85))
+    ls, lw = ic_styles.get(name, ("--", 1.1))
+    ax.axhline(tax, ls=ls, lw=lw, color="#6a3d9a", alpha=0.9, label=f"{name}  {tax:.2f} µW")
+    # offset label to avoid 1.32/1.61/1.68 cluster overlap
+    dx, dy = ic_offsets.get(name, (1.05, 0.0))
+    ax.text(dx, tax + dy, name, fontsize=6.2, color="#333333", va="center", ha="left",
+            bbox=dict(boxstyle="round,pad=0.14", fc="white", ec="#cccccc", alpha=0.95))
 for name, p in A["cross_period_s"].items():
     if p:
-        ax.plot(p, A["ic_bars_uw"][name], "o", ms=3.5, color="#d95f02", mec="white", mew=0.6, zorder=5)
-ax.annotate("one 8.2 $\\mu$J\nperturb / period",
-            xy=(16, 8.2e-6 * 1e6 / 16), xytext=(28, 3.0),
-            fontsize=6.5, arrowprops=dict(arrowstyle="->", lw=0.7, color="black"),
-            bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="gray", alpha=0.85))
+        ax.plot(p, A["ic_bars_uw"][name], "o", ms=4, color="#d95f02", mec="white", mew=0.7, zorder=5)
+ax.annotate("8.2 µJ per perturb",
+            xy=(14, fw[np.argmin(np.abs(per-14))]), xytext=(26, 3.4),
+            fontsize=6.5, ha="left", va="center",
+            arrowprops=dict(arrowstyle="->", lw=0.8, color="#1b9e77", shrinkA=2, shrinkB=4),
+            bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="#1b9e77", alpha=0.95))
 ax.set_xlabel("MPPT perturb period (s)", fontsize=8)
 ax.set_ylabel("average control tax ($\\mu$W)", fontsize=8)
 ax.grid(True, which="both", alpha=0.25)

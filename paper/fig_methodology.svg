@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="260" viewBox="0 0 360 260" role="img" aria-labelledby="title desc">
+  <title>Methodology flow</title>
+  <desc>Three measurement and modeling tracks converge on firmware-versus-PMIC feasibility analysis and its quantitative outcomes.</desc>
+  <style>
+    .box { fill: #ffffff; stroke: #222; stroke-width: 1.4; rx: 8; ry: 8; }
+    .box-blue { fill: #e8f0fe; stroke: #1a4fb5; }
+    .box-yellow { fill: #fef7e0; stroke: #b7791f; }
+    .box-green { fill: #e6f4ea; stroke: #1e7a34; }
+    .label { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 10px; fill: #111; }
+    .label-small { font-size: 9px; fill: #222; }
+    .label-title { font-size: 11px; font-weight: 700; fill: #111; }
+    .arrow { stroke: #222; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .caption { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 7px; fill: #444; font-style: italic; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 7 3, 0 6" fill="#222"/>
+    </marker>
+  </defs>
+
+  <!-- Top row: three boxes -->
+  <!-- Top row: three boxes - increased height for readability -->
+  <!-- Box 1 -->
+  <rect x="6" y="10" width="112" height="70" class="box box-blue"/>
+  <text x="62" y="26" text-anchor="middle" class="label-title">On-Silicon Harness</text>
+  <text x="62" y="38" text-anchor="middle" class="label">ESP32-S3 @ 240 MHz</text>
+  <text x="62" y="50" text-anchor="middle" class="label-small">ADC 60.0 µs / PID 6.78 µs</text>
+  <text x="62" y="60" text-anchor="middle" class="label-small">PWM 4.2 µs · Deep-sleep 4.0 ms</text>
+  <text x="62" y="70" text-anchor="middle" class="label-small">5× RTC wake</text>
+
+  <!-- Box 2 -->
+  <rect x="124" y="10" width="112" height="70" class="box box-blue"/>
+  <text x="180" y="26" text-anchor="middle" class="label-title">Device-Level Model</text>
+  <text x="180" y="38" text-anchor="middle" class="label">SCAPS-1D MAPbI₃</text>
+  <text x="180" y="50" text-anchor="middle" class="label-small">0.05 mW/cm² · 400–800 nm</text>
+  <text x="180" y="60" text-anchor="middle" class="label-small">E<tspan baseline-shift="sub" font-size="7">g</tspan> 1.6–2.1 eV · 6 JV curves</text>
+  <text x="180" y="70" text-anchor="middle" class="label-small">26.1 % peak @ 1.6 eV</text>
+
+  <!-- Box 3 -->
+  <rect x="242" y="10" width="112" height="70" class="box box-blue"/>
+  <text x="298" y="26" text-anchor="middle" class="label-title">System Models</text>
+  <text x="298" y="38" text-anchor="middle" class="label">PMIC quiescent tax</text>
+  <text x="298" y="50" text-anchor="middle" class="label-small">BQ25570 / AEM10941</text>
+  <text x="298" y="60" text-anchor="middle" class="label-small">ADP5091 · Crossover T<tspan baseline-shift="sub" font-size="7">p</tspan>*</text>
+  <text x="298" y="70" text-anchor="middle" class="label-small">24-h dispatch 2 F / 90 %</text>
+
+  <!-- Arrows from top boxes to middle -->
+  <path d="M 62 80 L 62 110 L 120 110 L 120 128" class="arrow"/>
+  <path d="M 180 80 L 180 128" class="arrow"/>
+  <path d="M 298 80 L 298 110 L 240 110 L 240 128" class="arrow"/>
+
+  <!-- Middle box -->
+  <rect x="22" y="128" width="316" height="56" class="box box-yellow"/>
+  <text x="180" y="144" text-anchor="middle" class="label-title">Firmware-MPPT Feasibility</text>
+  <text x="180" y="158" text-anchor="middle" class="label">E<tspan baseline-shift="sub" font-size="7">step</tspan> = 8.2 µJ  vs  PMIC tax 1.32–1.68 µW</text>
+  <text x="180" y="172" text-anchor="middle" class="label">→  Crossover T<tspan baseline-shift="sub" font-size="7">p</tspan>*  →  Service capacity</text>
+
+  <!-- Arrow middle to bottom -->
+  <path d="M 180 184 L 180 200" class="arrow"/>
+
+  <!-- Bottom box -->
+  <rect x="22" y="200" width="316" height="50" class="box box-green"/>
+  <text x="180" y="216" text-anchor="middle" class="label-title">Quantitative Outcomes</text>
+  <text x="180" y="230" text-anchor="middle" class="label">T<tspan baseline-shift="sub" font-size="7">step</tspan> 70.98 µs → E<tspan baseline-shift="sub" font-size="7">step</tspan> 8.2 µJ → T<tspan baseline-shift="sub" font-size="7">p</tspan>* 4.9–6.2 s → 1935 /day</text>
+  <text x="180" y="242" text-anchor="middle" class="label-small">4.0 ms wake · 5.99 J/day sleep floor · 8.6 J reserve</text>
+
+</svg>
