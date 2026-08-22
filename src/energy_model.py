@@ -69,22 +69,21 @@ def ic_mppt_period_s():
 # ---------------- part A: head-to-head ----------------
 
 def part_a():
-    periods = np.logspace(np.log10(1.0), np.log10(1000.0), 40)
+    periods = np.logspace(np.log10(1.0), np.log10(1000.0), 80)
     fw_tax = [fw_mppt_tax_watts(p) for p in periods]
     ic_bars = {k: pmic_tax_watts(v) for k, v in PMIC.items()}
-    # cadence at which firmware MPPT matches the most aggressive IC tax
-    cross = {name: {"period": 1.0, "undefined": True} for name in PMIC}
-    for name, tax in ic_bars.items():
-        for p, t in zip(periods, fw_tax):
-            if t <= tax:
-                cross[name] = {"period": float(p), "undefined": False}
-                break
+    # exact crossover: T_cross = E_step / (V*Iq)  (no discretization)
+    e_step = fw_mppt_step_energy()
+    cross = {}
+    for name, iq in PMIC.items():
+        tax = pmic_tax_watts(iq)
+        cross[name] = {"period": float(e_step / tax), "undefined": False}
     r = {
-        "e_step_uj": fw_mppt_step_energy() * 1e6,
+        "e_step_uj": e_step * 1e6,
         "t_step_us": T_STEP_US,
         "fw_tax": {"period_s": periods.tolist(), "uw": [t * 1e6 for t in fw_tax]},
         "ic_bars_uw": {k: v * 1e6 for k, v in ic_bars.items()},
-        "cross_period_s": {k: (None if v["undefined"] else v["period"]) for k, v in cross.items()},
+        "cross_period_s": {k: v["period"] for k, v in cross.items()},
     }
     return r
 
@@ -179,9 +178,13 @@ def self_check():
     a = part_a()
     assert abs(a["e_step_uj"] - 3.3 * 35e-3 * 71e-6 * 1e6) < 0.05, a["e_step_uj"]
     assert a["fw_tax"]["uw"][0] > a["ic_bars_uw"]["bq25570 (TI)"]  # 1 s cadence: fw > ic
-    assert 3.0 < a["cross_period_s"]["bq25570 (TI)"] < 8.0       # ~5 s crossover
-    print("part A self-check OK (step=%.2f uJ, bq25570 crossover ~%.0f s)"
-          % (a["e_step_uj"], a["cross_period_s"]["bq25570 (TI)"] or -1))
+    # exact crossovers: bq25570 ~5.09s, AEM10941 ~6.21s, ADP5091 ~4.87s
+    assert 5.0 < a["cross_period_s"]["bq25570 (TI)"] < 5.3, a["cross_period_s"]["bq25570 (TI)"]
+    assert 6.1 < a["cross_period_s"]["AEM10941 (e-peas)"] < 6.3, a["cross_period_s"]["AEM10941 (e-peas)"]
+    assert 4.7 < a["cross_period_s"]["ADP5091 (ADI)"] < 5.1, a["cross_period_s"]["ADP5091 (ADI)"]
+    print("part A self-check OK (step=%.2f uJ, bq25570 %.2f s, AEM %.2f s, ADP %.2f s)"
+          % (a["e_step_uj"], a["cross_period_s"]["bq25570 (TI)"],
+             a["cross_period_s"]["AEM10941 (e-peas)"], a["cross_period_s"]["ADP5091 (ADI)"]))
     for r in part_b():
         assert 0.0 <= r["max_duty_pct"] <= 100.0
         assert r["max_duty_pct"] < 100.0 or r["p_avg_uw"] > 2000.0

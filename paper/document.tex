@@ -4,9 +4,32 @@
 \documentclass[10pt, conference, letterpaper]{IEEEtran}
 
 \IEEEoverridecommandlockouts
-\markboth{Hussain Touhid Siddiquee}{Ditch the PMIC: Firmware-Only MPPT on ESP32-S3}
+\markboth{Anonymous Authors}{Ditch the PMIC: Firmware-Only MPPT on ESP32-S3}
 \title{Ditch the PMIC: Firmware-Only MPPT on ESP32-S3 for Indoor Photovoltaics}
-\author{Hussain Touhid Siddiquee}
+\author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
+\IEEEauthorblockA{\textit{Dept. name of organization} \\
+\textit{Name of organization}\\
+City, Country \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Given Name Surname}
+\IEEEauthorblockA{\textit{Dept. name of organization} \\
+\textit{Name of organization}\\
+City, Country \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{3\textsuperscript{rd} Given Name Surname}
+\IEEEauthorblockA{\textit{Dept. name of organization} \\
+\textit{Name of organization}\\
+City, Country \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{4\textsuperscript{th} Given Name Surname}
+\IEEEauthorblockA{\textit{Dept. name of organization} \\
+\textit{Name of organization}\\
+City, Country \\
+email address or ORCID}
+}
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -15,6 +38,18 @@
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
 \hypersetup{colorlinks=false, pdfborder={0 0 0}}
+% --- tight 6-page layout ---
+\renewcommand{\baselinestretch}{0.96}\normalsize
+\setlength{\textfloatsep}{2pt plus 1pt minus 1pt}
+\setlength{\floatsep}{2pt plus 1pt minus 1pt}
+\setlength{\intextsep}{2pt plus 1pt minus 1pt}
+\setlength{\dbltextfloatsep}{2pt plus 1pt minus 1pt}
+\setlength{\abovecaptionskip}{1.5pt}
+\setlength{\belowcaptionskip}{-2pt}
+\setlength{\abovedisplayskip}{3pt plus 1pt minus 1pt}
+\setlength{\belowdisplayskip}{3pt plus 1pt minus 1pt}
+\setlength{\parskip}{0pt}
+\setlength{\columnsep}{0.18in}
 
 \begin{document}
 \maketitle
@@ -38,7 +73,7 @@ The firmware hub runs a perturb-and-observe MPPT loop on the ESP32-S3 (revision 
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.85\linewidth]{/home/touhid/Documents/texflowmcp/workspace/fig_step.png}
+\includegraphics[width=0.85\linewidth]{fig_step.png}
 \caption{Measured wall time of each primitive of one MPPT perturb step on the ESP32-S3. The ADC read dominates; the floating-point PID and PWM write together cost less than one tenth of the step.}
 \label{fig:step}
 \end{figure}
@@ -75,7 +110,7 @@ To bound the harvest a firmware MPPT loop can expect indoors, we simulated a MAP
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.9\linewidth]{/home/touhid/Documents/texflowmcp/workspace/fig_scaps_indoor.png}
+\includegraphics[width=0.95\linewidth]{fig_scaps_indoor.png}
 \caption{SCAPS-1D simulation of a MAPbI$_3$ cell under a white 400--800 nm spectrum at 0.05 mW/cm$^2$. (a) JV families for bandgaps 1.6--2.1 eV. (b) Voc and Jsc versus bandgap.}
 \label{fig:scaps}
 \end{figure}
@@ -106,12 +141,12 @@ ADI ADP5091 & 510 & 1.68 & 4.9 \\
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.95\linewidth]{/home/touhid/Documents/texflowmcp/workspace/fig_overhead.png}
+\includegraphics[width=0.95\linewidth]{fig_overhead.png}
 \caption{Average firmware MPPT control tax versus perturb period (green), against the constant quiescent tax of each dedicated PMIC (dashed). Crossovers occur at 4.9--6.2 s.}
 \label{fig:overhead}
 \end{figure}
 
-As shown in Fig.~\ref{fig:overhead}, the crossover periods are 5.1\textasciitilde{}s (bq25570), 6.2\textasciitilde{}s (AEM10941), and 4.9\textasciitilde{}s (ADP5091). Below these periods the IC's constant tax is the cheaper option; above them, firmware MPPT wins outright and keeps winning as the period grows, down to 8.2\textasciitilde{}nW at a 1000\textasciitilde{}s cadence. This is the central quantitative result: for any workload that can tolerate a 4.9--6.2\textasciitilde{}s or slower MPPT update, the firmware-only hub consumes strictly less overhead than a dedicated harvester IC, before accounting for the PMIC's cost and board area. Two caveats remain: the firmware path needs the MCU to be awake (or its RTC timer to wake it) at each perturb, and it cannot harvest into a storage element while the MCU is powered down
+As shown in Fig.~\ref{fig:overhead}, the crossover periods are 5.1\textasciitilde{}s (bq25570), 6.2\textasciitilde{}s (AEM10941), and 4.9\textasciitilde{}s (ADP5091). Below these periods the IC's constant tax is the cheaper option; above them, firmware MPPT wins outright and keeps winning as the period grows, down to 8.2\textasciitilde{}nW at a 1000\textasciitilde{}s cadence. This is the central quantitative result: for any workload that can tolerate a 4.9--6.2\textasciitilde{}s or slower MPPT update, the firmware-only hub consumes strictly less overhead than a dedicated harvester IC, before accounting for the PMIC's cost and board area. Two caveats remain: the firmware path needs the MCU to be awake (or its RTC timer to wake it) at each perturb, and it cannot harvest into a storage element while the MCU is powered down.
 
 The comparison so far grants the PMICs their best case: datasheet quiescent current and a fully operational MPPT engine. Real deployments give the firmware hub two further advantages. First, measured cold-start behavior of these parts is markedly worse than the datasheet would suggest: the bq25570 cannot begin harvesting below roughly 0.5\textasciitilde{}mA of input current and exhibits orders-of-magnitude longer start-up than a boost-only alternative \cite{brunner2024harvestics}. An indoor cell under 200--500\textasciitilde{}lux frequently supplies exactly this low-current regime, so the dedicated-IC architecture can stall at dawn exactly when the hub must begin recharging its storage. A firmware hub has no cold-start step at all: it wakes from an RTC timer, computes a single perturb, and only then engages the storage path. Second, the PMIC must be sized and configured for precisely one cell type, whereas the firmware loop self-adapts its perturb step to whatever cell is attached, including the SCAPS cell of Section\textasciitilde{}III, without reconfiguration.
 
@@ -124,7 +159,7 @@ Whether the firmware hub is feasible end-to-end depends on the daily energy budg
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.9\linewidth]{/home/touhid/Documents/texflowmcp/workspace/fig_dispatch.png}
+\includegraphics[width=0.95\linewidth]{fig_dispatch.png}
 \caption{One simulated day for the 38\% dye-sensitized indoor cell: illuminance profile (top), instantaneous harvest (middle), and stored energy in a supercapacitor (bottom). Storage must bridge the night-time gap.}
 \label{fig:dispatch}
 \end{figure}
@@ -151,14 +186,14 @@ cad. (min) & /day & $E_{serve}$ (J) & $E_{sleep}$ (J) & sleep \% \\
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.9\linewidth]{/home/touhid/Documents/texflowmcp/workspace/fig_cadence.png}
+\includegraphics[width=0.92\linewidth]{fig_cadence.png}
 \caption{Daily energy split between the constant deep-sleep floor and 100\textasciitilde{}ms serving bursts, versus service cadence. Labels give the serving share; the sleep floor is fixed at 5.99\textasciitilde{}J/day.}
 \label{fig:cadence}
 \end{figure}
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.95\linewidth]{/home/touhid/Documents/texflowmcp/workspace/fig_feas.png}
+\includegraphics[width=0.95\linewidth]{fig_feas.png}
 \caption{Sustainable duty (fraction of time in a 100 ms serving burst) across cell technologies and active-burst currents. Labels give served events per hour.}
 \label{fig:feas}
 \end{figure}
@@ -174,8 +209,8 @@ A firmware MPPT hub spends most of its life between perturb steps in deep sleep,
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.95\linewidth]{/home/touhid/Documents/texflowmcp/workspace/fig_sleepwave.png}
-\caption{Measured deep-sleep probe cadence: a 4.0\textasciitilde{}ms active burst every 3.28\textasciitilde{}s, with the unit otherwise on the deep-sleep floor (7--8\textasciitilde{}$\mu$A chip, $\approx$21\textasciitilde{}$\mu$A board).}
+\includegraphics[width=0.95\linewidth]{fig_sleepwave.png}
+\caption{Measured deep-sleep probe cadence: a 4.0\textasciitilde{}ms active burst every 3.28\textasciitilde{}s, with the unit otherwise on the deep-sleep floor (7--8\textasciitilde{}$\mu$A chip, $\approx$21\textasciitilde{}$\mu$A board). The 0.28~s overhead is ROM bootloader and USB re-enumeration before the firmware-visible wake.}
 \label{fig:sleepwave}
 \end{figure}
 
@@ -199,6 +234,8 @@ Within these bounds, the architecture is robust to parameter error. The crossove
 
 Future work will close the two remaining measurement gaps: an external micro-ammeter reading the true rail current during deep sleep, and a live indoor cell replacing the SCAPS model in the dispatch loop. A Joulescope or comparable low-resistance ammeter is the standard instrument for this range \cite{espressif_currentmea}. Until then, the firmware-only hub is a defensible baseline: its control overhead is measured, its cell model is conservative, and its sleep floor is drawn from datasheet-grade sources.
 
+\vspace{1.5mm}
+\noindent\textbf{Use of Generative AI.} Generative AI tools were used to assist with coding (figure generation, data analysis scripts) and writing (language polishing, LaTeX formatting). The authors reviewed, edited, and verified all AI-assisted outputs and take full responsibility for the content of this publication.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

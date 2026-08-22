@@ -2,7 +2,7 @@
 
 Indoor light is dim (tens of microwatts per cm²) but perovskite and dye-sensitized cells are now efficient enough to power a sensing node from it. The usual approach adds a dedicated energy-harvesting PMIC between cell and MCU. This project asks whether the MCU itself can do the job.
 
-**Result:** on an ESP32-S3, a single perturb-and-observe MPPT step costs **71 µs / 8.2 µJ**. That is cheaper than the quiescent draw of the TI bq25570, e-peas AEM10941, and ADI ADP5091 once the perturb period exceeds **4.9–7.0 s**. For low-cadence sensing (one reading every tens of seconds to minutes) the firmware hub removes the harvester IC, its cost, and its board area.
+**Result:** on an ESP32-S3, a single perturb-and-observe MPPT step costs **71 µs / 8.2 µJ**. That is cheaper than the quiescent draw of the TI bq25570, e-peas AEM10941, and ADI ADP5091 once the perturb period exceeds **4.9–6.2 s** (5.1 s bq25570, 6.2 s AEM10941, 4.9 s ADP5091). For low-cadence sensing (one reading every tens of seconds to minutes) the firmware hub removes the harvester IC, its cost, and its board area.
 
 Paper: [`paper/document.pdf`](paper/document.pdf) — *Ditch the PMIC: Firmware-Only MPPT on ESP32-S3 for Indoor Photovoltaics* (IEEE conference, 6 pages).
 
@@ -31,6 +31,7 @@ python3 src/energy_model.py
 python3 src/fig_scaps_indoor.py
 python3 src/compose_figs.py
 python3 src/compose_figs2.py
+python3 src/fig_sleepwave.py
 ```
 
 **Paper:**
@@ -59,7 +60,7 @@ python3 host/capture_sleep.py 3 5
 |---|---|
 | MPPT step | 70.98 µs (ADC 60.0 + PID 6.78 + PWM 4.2 µs) |
 | Energy per step @ 3.3 V / 35 mA | 8.2 µJ |
-| Crossover period vs PMICs | 4.9 s (ADP5091) / 5.9 s (bq25570) / 7.0 s (AEM10941) |
+| Crossover period vs PMICs | 4.9 s (ADP5091) / 5.1 s (bq25570) / 6.2 s (AEM10941) |
 | SCAPS MAPbI₃ @ 0.05 mW/cm² white LED | E_g=1.6 eV → 0.018 mA/cm², 26.1%; 2.1 eV → 0.0075 mA/cm², 14.6% |
 | 38% DSC dispatch (24 h, 100 ms @100 mA, 90% budget) | ~821 µW avg harvest → ~1935 serves/day |
 | Deep-sleep probe | 4.0 ms wake every 3.28 s; housekeeping ~0.44 µJ at the sleep floor |
