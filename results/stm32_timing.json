@@ -1,0 +1,37 @@
+{
+  "board": "STM32F103C8 Blue Pill 72MHz stm32core",
+  "serial": "/dev/ttyUSB0 via CH341 USART1",
+  "firmware": "firmware-stm32/src/main.cpp stm32core",
+  "wiring": "PA8 (PWM) --jumper recommended--> PA0 (ADC) not connected for timing-only",
+  "cpu_mhz": 72.0,
+  "measurements": {
+    "adc_raw_ns_mean": 64324,
+    "adc_raw_ns_min": 64222,
+    "adc_raw_ns_max": 65611,
+    "comp_f32_ns_mean": 135931,
+    "comp_f32_ns_min": 128438,
+    "comp_f32_ns_max": 147000,
+    "pwm_ns_mean": 25017,
+    "pwm_ns_min": 23888,
+    "pwm_ns_max": 32600,
+    "step_ns_mean": 238969,
+    "step_ns_min": 232222,
+    "step_ns_max": 251847,
+    "adc_one_ns": 66542
+  },
+  "esp32_ref": {
+    "adc_us": 60.0, "pid_us": 6.78, "pwm_us": 4.2, "step_us": 70.98
+  },
+  "energy_estimate": {
+    "note": "STM32F103 RUN at 72MHz ~36mA @3.3V datasheet typ (all peripherals); standby ~2uA, board floor ~10-21uA",
+    "V": 3.3, "I_active_mA": 36.0, "T_step_us": 239.0,
+    "E_step_uJ": 28.4,
+    "T_wake_ms": 4.0, "E_wake_upper_uJ": 475.2,
+    "E_cycle_upper_uJ": 503.6
+  },
+  "crossovers": {
+    "bq25570_lower_s": 17.6, "bq25570_upper_s": 312,
+    "AEM10941_lower_s": 21.5, "AEM10941_upper_s": 381,
+    "ADP5091_lower_s": 16.9, "ADP5091_upper_s": 299
+  }
+}

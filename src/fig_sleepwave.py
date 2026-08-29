@@ -11,7 +11,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.abspath(os.path.join(HERE, "..", "figs", "fig_sleepwave.png"))
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
-plt.rcParams.update({"font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9.5, "xtick.labelsize": 9, "ytick.labelsize": 9})
+plt.rcParams.update({"font.size": 8, "axes.titlesize": 9, "axes.labelsize": 8.5, "xtick.labelsize": 8, "ytick.labelsize": 8})
 
 period_s = 3.28
 burst_ms = 4.0
@@ -26,7 +26,7 @@ for n in range(2):
     m = (t >= start) & (t < end)
     current[m] = active_ma
 
-fig, ax = plt.subplots(figsize=(3.4, 2.10))
+fig, ax = plt.subplots(figsize=(3.4, 1.70))
 ax.plot(t, current, color="#1b9e77", lw=1.8, drawstyle="steps-post")
 ax.fill_between(t, current, step="post", color="#1b9e77", alpha=0.18)
 

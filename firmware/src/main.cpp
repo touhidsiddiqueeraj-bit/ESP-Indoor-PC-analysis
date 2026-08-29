@@ -1,10 +1,15 @@
-// ESP32-S3 embedded-feasibility harness for the buck-boost digital PID study.
-//
-// Wiring: GPIO2 (LEDC PWM, ~100 kHz) jumper-shorted to GPIO1 (ADC1_CH0). The
-// controller drives PWM duty d; the averaged pin voltage d*V_LOGIC is the
-// sensed "output voltage", mapped into the paper's Vref=-12 V / FS=24 V frame:
-//   v_out = Vpin * 24/3.3 - 24   (Vpin=0 -> -24 V, 1.65 V -> -12 V, 3.3 V -> 0 V)
-// so Vref = -FS/2 exactly -- the paper's half-scale-coincidence operating point.
+// ESP32-S3 embedded-feasibility harness — timing/control-overhead characterization.
+// Scope (honest, per review): this bench measures MCU primitive timing (ADC+PID+PWM)
+// over a GPIO2->GPIO1 loopback that mimics a buck-boost averaged pin voltage.
+// It does NOT demonstrate PV power transfer. True PV MPPT requires two ADC
+// channels (Vpv on ADC1_CH0 + Ipv via 0.1Ω shunt/INA219 on ADC1_CH1), P=V*I,
+// and a discrete L/FET/diode switching stage — modeled in sim_core.py and
+// src/mppt_sim.py. The loopback maps into the Vref=-12V/FS=24V frame:
+//   v_out = Vpin * 24/3.3 - 24  (Vpin=0 -> -24V, 1.65V -> -12V, 3.3V -> 0V)
+// so Vref=-FS/2 is the half-scale coincidence operating point. For a future
+// PV bench, break the jumper, wire PV->LC stage->cap, and enable mode M
+// (true P&O) which is specified in pseudocode in the paper; timing per
+// perturb remains the 71us measured here plus one extra ADC read (~60us).
 //
 // Modes (serial: one char + drain):
 //   B   compute-pipeline benchmark (float + int32 Q-fixed), CSV out

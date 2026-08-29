@@ -18,7 +18,7 @@ plt.rcParams.update({"font.size": 8, "axes.titlesize": 9, "axes.labelsize": 8.5,
 # ---- fig_step : one perturb step, timing + energy contribution ----
 comp = ["ADC read", "float PID", "PWM write"]
 t_us  = [60.0, 6.78, 4.2]
-fig, ax = plt.subplots(figsize=(3.4, 1.85))
+fig, ax = plt.subplots(figsize=(3.4, 1.50))
 bars = ax.bar(comp, t_us, color=["#7570b3", "#1b9e77", "#d95f02"], width=0.58, edgecolor="white", linewidth=0.6)
 for b, v in zip(bars, t_us):
     ax.text(b.get_x() + b.get_width() / 2, v + 1.5, f"{v:.1f}", ha="center", fontsize=8.5, fontweight="bold")
@@ -38,7 +38,7 @@ C = D["part_c"]
 cads = [c["cadence_min"] for c in C]
 serve = [c["e_serve_j"] for c in C]
 sleep = [c["e_sleep_j"] for c in C]
-fig, ax = plt.subplots(figsize=(3.4, 1.85))
+fig, ax = plt.subplots(figsize=(3.4, 1.50))
 x = np.arange(len(cads))
 ax.bar(x, sleep, color="#7570b3", label="sleep floor", width=0.68, edgecolor="white", linewidth=0.5)
 ax.bar(x, serve, bottom=sleep, color="#1b9e77", label="serving", width=0.68, edgecolor="white", linewidth=0.5)

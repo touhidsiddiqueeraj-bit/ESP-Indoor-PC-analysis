@@ -20,6 +20,12 @@ Thumbs.db
 *.synctex.gz
 *.fdb_latexmk
 *.fls
+# reviews / local notes (not part of publication)
+Brutal*.docx
+final*.docx
+review*.txt
+# generated paper docx is kept, but ignore other docx
+*.tmp.docx
 # texflow workspace (regenerated)
 workspace/
 # variants

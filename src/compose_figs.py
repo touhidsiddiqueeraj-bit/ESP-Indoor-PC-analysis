@@ -22,12 +22,29 @@ V = 3.3
 I_SLEEP_BOARD = 21e-6
 N_HOURS = 24
 
-# ---- fig_overhead ----  single-column, whitespace-trimmed, no overlap
+# ---- fig_overhead (honest band + discrete floor) ----
 A = D["part_a"]
-fig, ax = plt.subplots(figsize=(3.4, 1.85))
+fig, ax = plt.subplots(figsize=(3.4, 1.55))
 per = np.array(A["fw_tax"]["period_s"])
-fw = np.array(A["fw_tax"]["uw"])
-ax.semilogx(per, fw, lw=1.7, color="#1b9e77", label="firmware MPPT")
+# new JSON uses uw_lower/uw_upper; fall back to old "uw" if present
+if "uw_lower" in A["fw_tax"]:
+    fw_low = np.array(A["fw_tax"]["uw_lower"])
+    fw_up = np.array(A["fw_tax"]["uw_upper"])
+    p_discrete = A.get("p_discrete_q_uw", 8.5)
+    # algorithm-only band (green)
+    ax.loglog(per, fw_low, lw=1.4, color="#1b9e77", label="algo-only 8.2 $\\mu$J")
+    ax.loglog(per, fw_up, lw=1.4, ls="--", color="#1b9e77", label="algo 470 $\\mu$J incl. wake")
+    ax.fill_between(per, fw_low, fw_up, color="#1b9e77", alpha=0.14)
+    # complete discrete implementation: E/Tp + P_discrete,q (gray band)
+    fw_tot_low = fw_low + p_discrete
+    fw_tot_up = fw_up + p_discrete
+    ax.loglog(per, fw_tot_low, lw=1.2, ls="-", color="#777777", alpha=0.9, label=f"total +{p_discrete:.1f} $\\mu$W")
+    ax.loglog(per, fw_tot_up, lw=1.2, ls="--", color="#777777", alpha=0.9)
+    ax.fill_between(per, fw_tot_low, fw_tot_up, color="#777777", alpha=0.10)
+    ax.axhline(p_discrete, ls=":", lw=1.0, color="#999999", alpha=0.7)
+else:
+    fw = np.array(A["fw_tax"]["uw"])
+    ax.semilogx(per, fw, lw=1.7, color="#1b9e77", label="firmware MPPT")
 # IC quiescent taxes — distinct linestyles for single-column legibility
 ic_styles = {
     "bq25570 (TI)": (":", 1.2),
@@ -48,17 +65,33 @@ for name, tax in A["ic_bars_uw"].items():
     ax.text(dx, tax + dy, name, fontsize=6.2, color="#333333", va="center", ha="left",
             bbox=dict(boxstyle="round,pad=0.14", fc="white", ec="#cccccc", alpha=0.95))
 for name, p in A["cross_period_s"].items():
-    if p:
+    # new format is dict {lower, upper} or float
+    if isinstance(p, dict):
+        lo, hi = p.get("lower"), p.get("upper")
+        if lo: ax.plot(lo, A["ic_bars_uw"][name], "o", ms=4, color="#d95f02", mec="white", mew=0.7, zorder=5)
+        if hi: ax.plot(hi, A["ic_bars_uw"][name], "s", ms=3, color="#d95f02", mec="white", mew=0.7, zorder=5, alpha=0.6)
+    elif p:
         ax.plot(p, A["ic_bars_uw"][name], "o", ms=4, color="#d95f02", mec="white", mew=0.7, zorder=5)
-ax.annotate("8.2 µJ per perturb",
-            xy=(14, fw[np.argmin(np.abs(per-14))]), xytext=(26, 3.4),
-            fontsize=6.5, ha="left", va="center",
+# annotation: use low band for reference (guard fw_up for linter)
+_yref = np.array(A["fw_tax"]["uw_lower"] if "uw_lower" in A["fw_tax"] else A["fw_tax"]["uw"])
+_yup = np.array(A["fw_tax"]["uw_upper"] if "uw_upper" in A["fw_tax"] else _yref)
+ax.annotate("8.2 $\\mu$J (71 $\\mu$s single-ch.)",
+            xy=(14, _yref[np.argmin(np.abs(per-14))]), xytext=(26, 3.4),
+            fontsize=6.2, ha="left", va="center",
             arrowprops=dict(arrowstyle="->", lw=0.8, color="#1b9e77", shrinkA=2, shrinkB=4),
             bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="#1b9e77", alpha=0.95))
+ax.annotate("upper: +4 ms wake (470 $\\mu$J)", xy=(90, _yup[np.argmin(np.abs(per-90))]), xytext=(200, 8),
+            fontsize=5.8, ha="left", va="center", color="#555555",
+            arrowprops=dict(arrowstyle="->", lw=0.7, color="#999999", shrinkA=2, shrinkB=4),
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#cccccc", alpha=0.9))
+ax.annotate("gray: +8.5 $\\mu$W discrete", xy=(300, _yup[np.argmin(np.abs(per-300))]+8.5), xytext=(420, 14),
+            fontsize=5.6, ha="left", va="center", color="#555555",
+            arrowprops=dict(arrowstyle="->", lw=0.6, color="#777777", shrinkA=2, shrinkB=4),
+            bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="#bbbbbb", alpha=0.9))
 ax.set_xlabel("MPPT perturb period (s)", fontsize=8)
 ax.set_ylabel("average control tax ($\\mu$W)", fontsize=8)
 ax.grid(True, which="both", alpha=0.25)
-ax.set_ylim(0.008, 12)
+ax.set_ylim(0.008, 20)
 ax.set_xlim(1, 1000)
 ax.legend(fontsize=6.5, loc="upper right", framealpha=0.92, handlelength=1.2, borderpad=0.3, labelspacing=0.3)
 ax.tick_params(labelsize=7.5, pad=2)
@@ -95,7 +128,7 @@ for k in range(len(t)):
     E = max(E, 0.0)
     soc[k] = E
 
-fig, axs = plt.subplots(3, 1, figsize=(3.4, 2.45), sharex=True, height_ratios=[1, 1, 1.4])
+fig, axs = plt.subplots(3, 1, figsize=(3.4, 2.00), sharex=True, height_ratios=[1, 1, 1.4])
 axs[0].fill_between(t, lux / 1000.0, alpha=0.5, color="#f0a202", step="mid")
 axs[0].set_ylabel("illum.\n(klux)", fontsize=8)
 axs[0].set_yticks([0.05, 0.3, 1.0])
@@ -117,7 +150,7 @@ fig.savefig(os.path.join(FIG, "fig_dispatch.png"), dpi=300)
 print("wrote figs/fig_dispatch.png")
 
 # ---- fig_feas : sustainable duty vs active current, per PV ----
-fig, ax = plt.subplots(figsize=(3.4, 1.85))
+fig, ax = plt.subplots(figsize=(3.4, 1.55))
 i_act = np.array([100, 250, 500])
 colors = {"DSC (38%)": "#1b9e77", "a-Si thin-film": "#d95f02", "SCAPS Eg=1.6 cell": "#7570b3"}
 xpos = np.arange(len(i_act))
