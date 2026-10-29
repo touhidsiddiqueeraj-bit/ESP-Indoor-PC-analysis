@@ -31,7 +31,7 @@ out={"Egs":Egs,"Voc":voc,"Jsc":jsc,"FF":ff,"eta":eta,
 json.dump(out, open(os.path.join(HERE,"../results/scaps_validation.json"),"w"), indent=1)
 # Plot: eta vs Eg with literature band
 plt.rcParams.update({"font.size":8})
-fig,ax=plt.subplots(figsize=(3.4,1.60))
+fig,ax=plt.subplots(figsize=(3.4,1.72))
 ax.plot(Egs, eta, "o-", color="#1b9e77", label="this work (SCAPS)", ms=5)
 # SQ envelope (approx from Freunek Fig 3 at 0.05 mW): 30% @1.6 -> 45% @1.9 -> 40% @2.1
 sq_eg=[1.6,1.7,1.8,1.9,2.0,2.1]
@@ -40,8 +40,11 @@ ax.plot(sq_eg, sq_eta, "s--", color="#6a3d9a", label="indoor SQ limit (Freunek/X
 ax.fill_between(Egs, 18, 33, color="#f0a202", alpha=0.12, label="literature 18-33% (Datt/Marrugat)")
 ax.set_xlabel("bandgap Eg (eV)"); ax.set_ylabel("PCE (%)")
 ax.set_title("SCAPS vs indoor SQ limit", fontsize=9)
-ax.legend(fontsize=6, loc="upper right")
+# legend below the axes: was inside upper-right, overlapping the SQ-limit points
+ax.legend(fontsize=6, ncol=1, loc="upper center", bbox_to_anchor=(0.5, -0.43),
+          frameon=False, handlelength=1.4, columnspacing=1.0, labelspacing=0.3)
 ax.grid(alpha=0.25)
-fig.tight_layout()
-fig.savefig(os.path.join(HERE,"../figs/fig_scaps_validation.png"), dpi=300)
+# explicit margins: reserve bottom room so the legend clears the x-axis label
+fig.subplots_adjust(left=0.17, right=0.97, top=0.88, bottom=0.42)
+fig.savefig(os.path.join(HERE,"../figs/fig_scaps_validation.png"), dpi=300, bbox_inches="tight", pad_inches=0.02)
 print("wrote figs/fig_scaps_validation.png and results/scaps_validation.json")

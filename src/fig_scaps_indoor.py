@@ -19,7 +19,7 @@ data = json.load(open(os.path.join(HERE, "..", "results", "scaps_indoor.json")))
 Egs = sorted((float(k[2:]) for k in data))
 
 # single panel: JV families only — saves vertical space, distinct from Fig 6 (PCE vs envelope)
-fig, ax = plt.subplots(figsize=(3.4, 1.75))
+fig, ax = plt.subplots(figsize=(3.4, 1.78))
 for k in sorted(data):
     d = data[k]
     if not d.get("V"):
@@ -28,17 +28,20 @@ for k in sorted(data):
     ax.plot(d["V"], d["J"], lw=1.4, label=f"$E_g$={Eg:.1f} eV")
 ax.set_xlabel("voltage (V)")
 ax.set_ylabel("J (mA/cm$^2$)")
-ax.legend(fontsize=6.8, ncol=3, loc="upper right", framealpha=0.9, handlelength=1.4, borderpad=0.3, labelspacing=0.3)
+# legend below the axes: was inside upper-right, crowding the 2.0/2.1 eV curve peaks
+ax.legend(fontsize=6.8, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.38),
+          frameon=False, handlelength=1.4, columnspacing=1.0, labelspacing=0.3)
 ax.set_title("JV families, 0.05 mW/cm$^2$ white LED (sim.)", fontsize=9, pad=6)
 ax.grid(alpha=0.25)
 ax.tick_params(labelsize=8)
 ax.set_xlim(0, 1.6)
-# annotate peak
-ax.text(0.02, 0.018, "peak 26.1% @1.6eV", fontsize=6.5, color="#1b9e77", va="top", ha="left",
+# annotate peak (placed in the empty high-V region so it covers no curve)
+ax.text(1.17, 0.0165, "peak 26.1% @1.6 eV", fontsize=6.5, color="#1b9e77", va="top", ha="left",
         bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#1b9e77", alpha=0.85))
 
-fig.tight_layout(pad=0.5)
-fig.savefig(OUT, dpi=300)
+# explicit margins: reserve bottom room so the legend clears the x-axis label
+fig.subplots_adjust(left=0.13, right=0.97, top=0.87, bottom=0.40)
+fig.savefig(OUT, dpi=300, bbox_inches="tight", pad_inches=0.02)
 # copy to paper
 import shutil
 shutil.copy(OUT, OUT_PAPER)
