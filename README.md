@@ -4,11 +4,11 @@ Indoor light is dim (tens of microwatts per cm²) but perovskite and dye-sensiti
 
 **Result:** on an ESP32-S3, a single-channel control update costs **70.98 µs / 8.2 µJ** (timing-derived at 3.3 V / 35 mA; two-channel P&O ≈ 131 µs / 15.1 µJ; STM32F103 soft-float comparison: 239 µs / 28.4 µJ). The per-wake energy is bounded at 8.2–470 µJ (57× uncertainty pending rail-current measurement), so the firmware-vs-PMIC crossover is a **sensitivity, not a point result**: ≈ 4.9–6.2 s at the algorithm-only lower bound, ≈ 279–356 s at the harness-inclusive upper bound. Once the ≈ 8.5 µW discrete-stage floor (sense + LDO) is included there is **no quiescent-power crossover** — firmware competes on BOM, configurability and workload duty, not static power, and the discrete power stage remains required. A simulated SCAPS-1D cell (26.1% at 1.6 eV, 0.05 mW/cm²) and simulated P&O tracking (~93% at 5 s, ~70% at ≥ 60 s cadence) bound the harvest; under one office profile a 38% DSC with a 2 F supercapacitor sustains ~1730 net 100 mA bursts/day (~1600 at 93.3% MPPT, Tp = 5 s). Timing is measured; harvest, tracking and the converter are simulated.
 
-Paper: [`paper/document.pdf`](paper/document.pdf) — *Bounding the Control-Energy Overhead of Firmware MPPT on ESP32-S3 vs. STM32F103: A Timing Characterization and Simulated Feasibility Envelope* (IEEE conference, 6 pages).
+Paper: [`paper/document.pdf`](paper/document.pdf) — *Bounding the Control-Energy Overhead of Firmware MPPT on ESP32-S3 vs. STM32F103: A Timing Characterization and Simulated Feasibility Envelope* (IEEE conference template — IEEEtran V1.8b, 8 pages).
 
 ## What this repo contains
 
-- **Paper sources** in `paper/` — LaTeX (`document.tex`), bibliography (`references.bib`), the compiled PDF, and all 10 paper figures as 300 dpi PNGs (also a 6-page `.docx` export). The compiled PDF is single-column figures/tables with clickable citations.
+- **Paper sources** in `paper/` — LaTeX (`document.tex`), bibliography (`references.bib`), the compiled PDF, and all 10 paper figures as 300 dpi PNGs (also a matching `.docx` export). The compiled PDF follows the official IEEE conference template: every figure at full column width, black hyperlink/citation text, and legends placed below the plot area so they never cover the data.
 - **Models + figures** in `src/` and `figs/` — Python scripts that generate the crossover, dispatch, and SCAPS plots from the JSON results in `results/`.
 - **Firmware harness** in `firmware/` — ESP32-S3 code that measures the MPPT step on silicon and validates the deep-sleep probe. Captured logs live in `firmware/results/`.
 

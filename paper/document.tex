@@ -1,45 +1,23 @@
+% IEEE conference template: bare_conf.tex (IEEEtran.cls V1.8b)
+% \documentclass[conference]{IEEEtran} — template default options
 \documentclass[10pt, conference, letterpaper]{IEEEtran}
-\IEEEoverridecommandlockouts
-\markboth{Bounding Firmware MPPT Control Overhead: Timing + Simulated Envelope}{Indoor Photovoltaic Nodes}
 \title{Bounding the Control-Energy Overhead of Firmware MPPT on ESP32-S3 vs.\ STM32F103:\\A Timing Characterization and Simulated Feasibility Envelope}
-\author{\IEEEauthorblockN{Anonymous Authors}
-\IEEEauthorblockA{\textit{Anonymized for double-blind review}\\
-\textit{Affiliations omitted for review}\\
-\textit{Contact omitted for review}}
-}
+\author{\IEEEauthorblockN{Touhid Siddique Eraj}
+\IEEEauthorblockA{\textit{Independent Researcher}\\
+Dhaka, Bangladesh\\
+\texttt{github.com/touhidsiddiqueeraj-bit}}}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{booktabs}
 \usepackage{graphicx}
-\usepackage[colorlinks=true,linkcolor=blue,urlcolor=cyan,citecolor=green]{hyperref}
 \usepackage{url}
-% ponytail: tightened for strict 6pp — saves ~0.9 page
-\linespread{1.02}
-\renewcommand{\baselinestretch}{0.90}\normalsize
-\setlength{\textfloatsep}{1.5pt plus 0.5pt minus 1pt}
-\setlength{\floatsep}{1.5pt plus 0.5pt minus 1pt}
-\setlength{\intextsep}{1.5pt plus 0.5pt minus 1pt}
-\setlength{\dbltextfloatsep}{1.5pt plus 0.5pt minus 1pt}
-\setlength{\abovecaptionskip}{0.5pt}
-\setlength{\belowcaptionskip}{-4pt}
-\setlength{\abovedisplayskip}{1.5pt plus 0.5pt minus 1pt}
-\setlength{\belowdisplayskip}{1.5pt plus 0.5pt minus 1pt}
-\setlength{\parskip}{0pt}
-\setlength{\columnsep}{0.13in}
-\AtEndDocument{\vspace{-2pt}}
-% allow more floats per column
-\renewcommand{\topfraction}{0.95}
-\renewcommand{\bottomfraction}{0.95}
-\renewcommand{\textfraction}{0.05}
-\renewcommand{\floatpagefraction}{0.9}
-\setcounter{topnumber}{4}
-\setcounter{bottomnumber}{4}
-\setcounter{totalnumber}{8}
+% IEEE style: all hyperlinks (citations, cross-references, URLs) in black
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=black,citecolor=black]{hyperref}
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Battery-free indoor nodes must track the photovoltaic maximum power point with the same MCU that harvests the energy. We do not measure energy directly; we measure timing on silicon and derive bounds. The measured single-channel control update takes 71\,$\mu$s on ESP32-S3 at 240\,MHz (239\,$\mu$s on STM32F103 at 72\,MHz, soft-float) and a two-channel P\&O update is $\sim$131\,$\mu$s/15.1\,$\mu$J (STM32 $\sim$304\,$\mu$s) including the extra ADC. At datasheet-typical current this bounds $E_{\mathrm{cycle}}$ at 8.2--470\,$\mu$J per wake (ESP32; 57$\times$ uncertainty pending rail-current measurement). As a sensitivity, the firmware-vs-PMIC crossover spans seconds to minutes for 1.3--1.7\,$\mu$W quiescent. A simulated SCAPS-1D cell and a simulated P\&O loop ($\sim$70\% at minute cadences) bound harvest; under one office profile and a common boundary (85\% buck-boost + 8.5\,$\mu$W discrete+LDO), a 2\,F supercapacitor bridges the night and a 38\% cell sustains $\sim$1.6--1.7\,k net 100\,mA bursts per day. Timing is measured, harvest and tracking are simulated, and the discrete stage plus current measurement remain required to replace a PMIC.
+Battery-free indoor sensors run on a few hundred microwatts harvested from room light, and today a dedicated energy-harvesting chip keeps the photovoltaic cell at its maximum power point at a standing cost of roughly 1.3 to 1.8 microwatts. This paper asks whether the sensor node's own microcontroller can perform that tracking in firmware instead. We measure the cost of one firmware tracking update on real hardware: 71 microseconds on an ESP32-S3 at 240 MHz and 239 microseconds on a soft-float STM32F103, or 131 microseconds for a complete two-channel perturb-and-observe step. Combined with datasheet supply currents, these timings bound the energy of a tracking step between 8.2 and 15.1 microjoules, and a full wake-and-update cycle between 8.2 and 470 microjoules, a range that only a direct rail-current measurement can narrow. The cell and the converter are not yet on the bench, so harvest and tracking are studied in simulation: a calibrated SCAPS-1D perovskite cell model reaches 26.1 percent efficiency under indoor light, and a simulated perturb-and-observe loop retains 93 percent of the available power at a five-second cadence, degrading to about 70 percent at minute-scale cadences. Under a representative office lighting profile, a 38 percent efficient cell with a 2 F supercapacitor sustains roughly 1,600 to 1,700 bursts of 100 mA per day. The conclusion is deliberately bounded: with the unavoidable discrete power stage adding 8.5 microwatts, firmware cannot beat a harvesting chip on standby power alone, but it remains attractive for slow-sensing workloads, where it eliminates the harvesting IC while its timing cost stays negligible.
 \end{abstract}
 
 \section{Introduction}
@@ -54,7 +32,7 @@ Three tracks converge on the comparison (Fig.~\ref{fig:method}): measured firmwa
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.88\linewidth]{fig_methodology.pdf}
+\includegraphics[width=\linewidth]{fig_methodology.pdf}
 \caption{Methodology: ESP32-S3/STM32 on-silicon timing (measured) + SCAPS-1D (simulated) + dispatch under common boundary (85\% buck-boost + LDO). Energy bands are timing-derived bounds; $T_p^*=E_{\mathrm{cycle}}/P_q$ is shown as sensitivity to unmeasured $E_{\mathrm{cycle}}$, and $\eta_{\mathrm{MPPT}}(T_p)$ discounts harvest in dispatch. $T_p^*$ and $\eta_{\mathrm{MPPT}}$ denote perturb period vs.\ tracking efficiency as defined in Sec.~\ref{sec:mpptsim}--\ref{sec:crossover}.}
 \label{fig:method}
 \end{figure}
@@ -91,16 +69,16 @@ On the present bench the PV and converter are absent: GPIO2 (LEDC, 100\,kHz) is 
 
 \begin{figure}[t]
 \centering
-\begin{minipage}[t]{0.46\linewidth}\centering
 \includegraphics[width=\linewidth]{fig_step.png}
 \caption{Wall time per primitive (ESP32-S3 @240\,MHz): 71\,$\mu$s single-channel; ADC 84.5\%.}
 \label{fig:step}
-\end{minipage}\hfill
-\begin{minipage}[t]{0.50\linewidth}\centering
+\end{figure}
+
+\begin{figure}[t]
+\centering
 \includegraphics[width=\linewidth]{fig_stm32_compare.png}
 \caption{Single-channel update: ESP32-S3 vs STM32F103 (239\,$\mu$s, soft-float); two-channel P\&O $\sim$131/304\,$\mu$s.}
 \label{fig:stm32}
-\end{minipage}
 \end{figure}
 
 \subsection{On-Silicon Measurement Protocol (Honest Timing-Derived Bounds)}
@@ -180,7 +158,7 @@ Fig.~\ref{fig:step} and Table~\ref{tab:timing} decompose one perturb: ADC 60.0\,
 \centering
 \caption{Measured single-channel control update (cycle counter). FPU vs soft-float. Two-channel P\&O: +1 ADC $\sim$131\,$\mu$s/15.1\,$\mu$J ESP32, $\sim$304\,$\mu$s STM32.}
 \label{tab:timing}
-{\scriptsize\setlength{\tabcolsep}{2.5pt}
+{\scriptsize\setlength{\tabcolsep}{1.5pt}
 \begin{tabular}{l l l l}
 \toprule
 Primitive & ESP32-S3 @240\,MHz & Share & STM32F103 @72\,MHz \\
@@ -202,7 +180,7 @@ Five consecutive 3\,s timer wakes show 4.0\,ms firmware-visible bursts every 3.2
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{fig_sleepwave.png}
+\includegraphics[width=\linewidth]{fig_sleepwave.png}
 \caption{Deep-sleep probe: firmware-visible 4.0\,ms bursts (setup entry $\rightarrow$ 71\,$\mu$s update $\rightarrow$ sleep) every 3.28\,s, stylized from measured timings (current levels nominal). Shaded: 0.28\,s ROM boot + USB re-enumeration before stamp + 50\,ms settle (host-side, not charged at $I_{\mathrm{act}}$; rail current unmeasured).}
 \label{fig:sleepwave}
 \end{figure}
@@ -214,16 +192,16 @@ Five consecutive 3\,s timer wakes show 4.0\,ms firmware-visible bursts every 3.2
 
 \begin{figure}[t]
 \centering
-\begin{minipage}[t]{0.55\linewidth}\centering
 \includegraphics[width=\linewidth]{fig_scaps_indoor.png}
 \caption{SCAPS-1D JV families (sim., 0.05\,mW/cm$^2$ white LED, 1.6--2.1\,eV).}
 \label{fig:scaps}
-\end{minipage}\hfill
-\begin{minipage}[t]{0.41\linewidth}\centering
+\end{figure}
+
+\begin{figure}[t]
+\centering
 \includegraphics[width=\linewidth]{fig_scaps_validation.png}
 \caption{PCE vs indoor SQ limit; broader white spectrum shifts peak from 1.9\,eV to 1.6\,eV. Gray: 18--33\% lit. devices.}
 \label{fig:scapsvalid}
-\end{minipage}
 \end{figure}
 
 The bandgap trade-off is asymmetric: $E_g$ 1.6$\rightarrow$2.1\,eV lifts $V_{oc}$ by 0.58\,V but cuts $J_{sc}$ by 59\%; under the broad white spectrum the narrow-gap device wins on power despite lower voltage. Under a warm LED spectrum the optimum shifts toward $\sim$1.9\,eV \cite{xu2026progress,ma2024record}; our $A$=1e7 coefficient model correctly tracks Eg but the absolute optimum is spectrum-dependent.
@@ -240,7 +218,9 @@ Fig.~\ref{fig:overhead} and Table~\ref{tab:ic} give the revised comparison as a 
 {\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{l l l l l}
 \toprule
-IC & $I_q$ (terminal) & tax ($\mu$W) & $T_p^*$ ESP32 (s) & $T_p^*$ STM32 (s) \\
+IC & $I_q$ (terminal) & tax & \multicolumn{2}{c}{$T_p^*$ (s)} \\
+\cmidrule(lr){4-5}
+ &  & ($\mu$W) & ESP32 & STM32 \\
 \midrule
 bq25570 & 488\,nA ($V_{\mathrm{STOR}}$) & 1.61 & 5.1 -- 292 & 17.6 -- 312 \\
 AEM10941 & 400\,nA ($V_{\mathrm{BATT}}$) & 1.32 & 6.2 -- 356 & 21.5 -- 381 \\
@@ -251,7 +231,7 @@ ADP5091 & 510\,nA (SYS) & 1.68 & 4.9 -- 279 & 16.9 -- 299 \\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.88\linewidth]{fig_overhead.png}
+\includegraphics[width=\linewidth]{fig_overhead.png}
 \caption{Firmware control tax: green band = algorithm-only $E_{\mathrm{cycle}}/T_p$ (lower = single-channel $E_{\mathrm{step}}$, upper = harness-inclusive 470\,$\mu$J); gray band = complete discrete implementation $E_{\mathrm{cycle}}/T_p+P_{\mathrm{discrete,q}}$ (8.5\,$\mu$W LDO+sense). PMIC quiescent 1.32--1.68\,$\mu$W dashed. No quiescent-power crossover exists under the 8.5\,$\mu$W floor; firmware competes on BOM/configurability, not static power. Any quoted $T_p^*$ is $T_p^*(E_{\mathrm{cycle}})$ pending rail-current measurement.}
 \label{fig:overhead}
 \end{figure}
@@ -279,7 +259,7 @@ A 5\,s cadence tracks steps reasonably (93\%), but the reviewer-required transie
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.88\linewidth]{fig_mppt_tracking.png}
+\includegraphics[width=\linewidth]{fig_mppt_tracking.png}
 \caption{P\&O on SCAPS 1.6\,eV (sim., $P=V\cdot I$): 5\,s vs 60\,s cadence under irradiance step (93\% vs 71\%); 12-bit, 20\,mV step, 8\,ms lag. Bottom: converter $V\rightarrow V_{\mathrm{ref}}$ first-order.}
 \label{fig:mppt}
 \end{figure}
@@ -321,7 +301,7 @@ Gross (no sleep/MPPT) & 1935 & --- \\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.88\linewidth]{fig_dispatch.png}
+\includegraphics[width=\linewidth]{fig_dispatch.png}
 \caption{One day (DSC 38\%): illuminance, harvest (85\% conv.), and SoC (dashed: 93\% MPPT at $T_p$=5\,s).}
 \label{fig:dispatch}
 \end{figure}
@@ -346,7 +326,7 @@ Cadence (min) & /day & $E_{\mathrm{serve}}$ (J) & $E_{\mathrm{sleep}}$ (J) & sle
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.88\linewidth]{fig_feas.png}
+\includegraphics[width=\linewidth]{fig_feas.png}
 \caption{Sustainable duty vs burst current (board floor; labels: wakes/h). Table~\ref{tab:cadence} gives the split.}
 \label{fig:feas}
 \end{figure}
@@ -361,7 +341,7 @@ The firmware loop is $\sim$38 LoC, 1.8\,kB flash, $<$200\,B RAM; RTC duty state 
 \centering
 \caption{BOM: power stage remains in both; firmware saves IC, adds LDO + ADC.}
 \label{tab:bom}
-{\footnotesize
+{\footnotesize\setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{l l l}
 \toprule
 Item & PMIC node & Discrete + firmware \\

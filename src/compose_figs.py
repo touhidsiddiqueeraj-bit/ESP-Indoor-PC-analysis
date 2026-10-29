@@ -23,8 +23,11 @@ I_SLEEP_BOARD = 21e-6
 N_HOURS = 24
 
 # ---- fig_overhead (honest band + discrete floor) ----
+# Legend sits BELOW the axes so it never covers the curves.
 A = D["part_a"]
-fig, ax = plt.subplots(figsize=(3.4, 1.55))
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
+fig, ax = plt.subplots(figsize=(3.4, 2.45))
 per = np.array(A["fw_tax"]["period_s"])
 # new JSON uses uw_lower/uw_upper; fall back to old "uw" if present
 if "uw_lower" in A["fw_tax"]:
@@ -32,38 +35,31 @@ if "uw_lower" in A["fw_tax"]:
     fw_up = np.array(A["fw_tax"]["uw_upper"])
     p_discrete = A.get("p_discrete_q_uw", 8.5)
     # algorithm-only band (green)
-    ax.loglog(per, fw_low, lw=1.4, color="#1b9e77", label="algo-only 8.2 $\\mu$J")
-    ax.loglog(per, fw_up, lw=1.4, ls="--", color="#1b9e77", label="algo 470 $\\mu$J incl. wake")
+    ax.loglog(per, fw_low, lw=1.4, color="#1b9e77")
+    ax.loglog(per, fw_up, lw=1.4, ls="--", color="#1b9e77")
     ax.fill_between(per, fw_low, fw_up, color="#1b9e77", alpha=0.14)
     # complete discrete implementation: E/Tp + P_discrete,q (gray band)
     fw_tot_low = fw_low + p_discrete
     fw_tot_up = fw_up + p_discrete
-    ax.loglog(per, fw_tot_low, lw=1.2, ls="-", color="#777777", alpha=0.9, label=f"total +{p_discrete:.1f} $\\mu$W")
+    ax.loglog(per, fw_tot_low, lw=1.2, ls="-", color="#777777", alpha=0.9)
     ax.loglog(per, fw_tot_up, lw=1.2, ls="--", color="#777777", alpha=0.9)
     ax.fill_between(per, fw_tot_low, fw_tot_up, color="#777777", alpha=0.10)
     ax.axhline(p_discrete, ls=":", lw=1.0, color="#999999", alpha=0.7)
 else:
     fw = np.array(A["fw_tax"]["uw"])
     ax.semilogx(per, fw, lw=1.7, color="#1b9e77", label="firmware MPPT")
-# IC quiescent taxes — distinct linestyles for single-column legibility
+# IC quiescent taxes -- distinct linestyles for single-column legibility
 ic_styles = {
     "bq25570 (TI)": (":", 1.2),
     "AEM10941 (e-peas)": ("--", 1.2),
     "ADP5091 (ADI)": ("-.", 1.2),
 }
-# place IC labels with leader lines to avoid overlap (taxes cluster at 1.32–1.68 µW)
-ic_offsets = {
-    "bq25570 (TI)": (1.05, 0.22),
-    "AEM10941 (e-peas)": (1.05, -0.32),
-    "ADP5091 (ADI)": (1.05, 0.52),
-}
+ic_handles = []
 for name, tax in A["ic_bars_uw"].items():
     ls, lw = ic_styles.get(name, ("--", 1.1))
-    ax.axhline(tax, ls=ls, lw=lw, color="#6a3d9a", alpha=0.9, label=f"{name}  {tax:.2f} µW")
-    # offset label to avoid 1.32/1.61/1.68 cluster overlap
-    dx, dy = ic_offsets.get(name, (1.05, 0.0))
-    ax.text(dx, tax + dy, name, fontsize=6.2, color="#333333", va="center", ha="left",
-            bbox=dict(boxstyle="round,pad=0.14", fc="white", ec="#cccccc", alpha=0.95))
+    ax.axhline(tax, ls=ls, lw=lw, color="#6a3d9a", alpha=0.9)
+    ic_handles.append(Line2D([0], [0], ls=ls, lw=lw, color="#6a3d9a",
+                             label=f"{name}  {tax:.2f} µW"))
 for name, p in A["cross_period_s"].items():
     # new format is dict {lower, upper} or float
     if isinstance(p, dict):
@@ -72,31 +68,26 @@ for name, p in A["cross_period_s"].items():
         if hi: ax.plot(hi, A["ic_bars_uw"][name], "s", ms=3, color="#d95f02", mec="white", mew=0.7, zorder=5, alpha=0.6)
     elif p:
         ax.plot(p, A["ic_bars_uw"][name], "o", ms=4, color="#d95f02", mec="white", mew=0.7, zorder=5)
-# annotation: use low band for reference (guard fw_up for linter)
-_yref = np.array(A["fw_tax"]["uw_lower"] if "uw_lower" in A["fw_tax"] else A["fw_tax"]["uw"])
-_yup = np.array(A["fw_tax"]["uw_upper"] if "uw_upper" in A["fw_tax"] else _yref)
-ax.annotate("8.2 $\\mu$J (71 $\\mu$s single-ch.)",
-            xy=(14, _yref[np.argmin(np.abs(per-14))]), xytext=(26, 3.4),
-            fontsize=6.2, ha="left", va="center",
-            arrowprops=dict(arrowstyle="->", lw=0.8, color="#1b9e77", shrinkA=2, shrinkB=4),
-            bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="#1b9e77", alpha=0.95))
-ax.annotate("upper: +4 ms wake (470 $\\mu$J)", xy=(90, _yup[np.argmin(np.abs(per-90))]), xytext=(200, 8),
-            fontsize=5.8, ha="left", va="center", color="#555555",
-            arrowprops=dict(arrowstyle="->", lw=0.7, color="#999999", shrinkA=2, shrinkB=4),
-            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="#cccccc", alpha=0.9))
-ax.annotate("gray: +8.5 $\\mu$W discrete", xy=(300, _yup[np.argmin(np.abs(per-300))]+8.5), xytext=(420, 14),
-            fontsize=5.6, ha="left", va="center", color="#555555",
-            arrowprops=dict(arrowstyle="->", lw=0.6, color="#777777", shrinkA=2, shrinkB=4),
-            bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="#bbbbbb", alpha=0.9))
 ax.set_xlabel("MPPT perturb period (s)", fontsize=8)
-ax.set_ylabel("average control tax ($\\mu$W)", fontsize=8)
+ax.set_ylabel("average control tax (µW)", fontsize=8)
 ax.grid(True, which="both", alpha=0.25)
 ax.set_ylim(0.008, 20)
 ax.set_xlim(1, 1000)
-ax.legend(fontsize=6.5, loc="upper right", framealpha=0.92, handlelength=1.2, borderpad=0.3, labelspacing=0.3)
 ax.tick_params(labelsize=7.5, pad=2)
-fig.tight_layout(pad=0.35)
-fig.subplots_adjust(top=0.92, bottom=0.18, left=0.18, right=0.97)
+# legend below the axes (two columns) -- never overlaps the data
+leg_handles = [
+    Patch(facecolor="#1b9e77", alpha=0.25, edgecolor="#1b9e77",
+          label="algo-only band 8.2–470 µJ"),
+    Patch(facecolor="#777777", alpha=0.22, edgecolor="#777777",
+          label="discrete impl. band (+8.5 µW)"),
+] + ic_handles + [
+    Line2D([0], [0], marker="o", ms=4, ls="", color="#d95f02", mec="white", mew=0.7,
+           label="$T_p^*$ crossover (● lower / ■ upper)"),
+]
+ax.legend(handles=leg_handles, fontsize=6.8, loc="upper center",
+          bbox_to_anchor=(0.5, -0.32), ncol=2, framealpha=0.95,
+          handlelength=1.7, borderpad=0.4, labelspacing=0.32, columnspacing=1.0)
+fig.subplots_adjust(left=0.165, right=0.97, top=0.95, bottom=0.44)
 fig.savefig(os.path.join(FIG, "fig_overhead.png"), dpi=300, bbox_inches="tight", pad_inches=0.02)
 print("wrote figs/fig_overhead.png")
 
